@@ -1,18 +1,49 @@
 {
   "name": "subagent",
-  "version": "0.1.0",
-  "description": "TypeScript port of the Subagent CLI",
+  "version": "0.3.1",
+  "description": "CLI tool for managing workspace agents across VS Code",
   "type": "module",
   "bin": {
     "subagent": "./dist/cli.js"
   },
+  "main": "./dist/cli.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc && shx cp -r src/vscode/subagent_template dist/vscode/",
     "dev": "tsx src/cli.ts",
     "start": "node --enable-source-maps dist/cli.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "pnpm build && pnpm test"
+  },
+  "keywords": [
+    "cli",
+    "agent",
+    "workspace",
+    "vscode",
+    "automation",
+    "parallel",
+    "ai",
+    "copilot",
+    "subagent"
+  ],
+  "author": "EntityProcess",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EntityProcess/subagent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/EntityProcess/subagent/issues"
+  },
+  "homepage": "https://github.com/EntityProcess/subagent#readme",
+  "engines": {
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "commander": "^12.1.0",

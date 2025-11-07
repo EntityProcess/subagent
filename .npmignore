@@ -1,0 +1,43 @@
+# Source files
+src/
+tests/
+
+# Config files
+tsconfig.json
+vitest.config.ts
+.github/
+
+# Development files
+*.log
+*.tsbuildinfo
+.env
+.env.*
+
+# Version control
+.git
+.gitignore
+
+# Documentation (internal only)
+AGENTS.md
+
+# Lock files
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# pnpm
+.pnpm-store
