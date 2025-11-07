@@ -78,11 +78,7 @@ describe("warmup", () => {
     });
 
     it("should skip subagent directories missing workspace file", async () => {
-      // Create a subagent directory manually without workspace file
-      const subagentDir = path.join(targetRoot, "subagent-1");
-      await mkdir(subagentDir, { recursive: true });
-
-      // Provision subagent-2 properly
+      // Provision properly first
       await provisionSubagents({
         templateDir,
         targetRoot,
@@ -91,6 +87,11 @@ describe("warmup", () => {
         force: false,
         dryRun: false,
       });
+
+      // Then DELETE the workspace file from subagent-1
+      const { rm } = await import("fs/promises");
+      const subagent1Workspace = path.join(targetRoot, "subagent-1", "subagent-1.code-workspace");
+      await rm(subagent1Workspace);
 
       const workspaces = await getAllSubagentWorkspaces(targetRoot);
 

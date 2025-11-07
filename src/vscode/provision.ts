@@ -113,6 +113,16 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
       continue;
     }
 
+    // Force overwrite even if unlocked
+    if (!isLocked && force) {
+      if (!dryRun) {
+        await copyFile(workspaceSrc, workspaceDst);
+      }
+      created.push(subagentDir);
+      subagentsProvisioned += 1;
+      continue;
+    }
+
     if (!dryRun && !(await pathExists(workspaceDst))) {
       await copyFile(workspaceSrc, workspaceDst);
     }

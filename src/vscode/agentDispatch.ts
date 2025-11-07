@@ -317,6 +317,7 @@ export interface DispatchOptions {
   dryRun?: boolean;
   wait?: boolean;
   vscodeCmd?: string;
+  subagentRoot?: string;
 }
 
 export async function dispatchAgent(options: DispatchOptions): Promise<number> {
@@ -327,6 +328,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
     dryRun = false,
     wait = false,
     vscodeCmd = "code",
+    subagentRoot,
   } = options;
 
   try {
@@ -340,8 +342,8 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
       throw new Error(`Prompt file must be a file, not a directory: ${resolvedPrompt}`);
     }
 
-    const subagentRoot = getSubagentRoot();
-    const subagentDir = await findUnlockedSubagent(subagentRoot);
+    const subagentRootPath = subagentRoot ?? getSubagentRoot();
+    const subagentDir = await findUnlockedSubagent(subagentRootPath);
     if (!subagentDir) {
       console.error(
         "error: No unlocked subagents available. Provision additional subagents with:\n  subagent code provision --subagents <desired_total>",

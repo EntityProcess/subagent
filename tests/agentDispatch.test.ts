@@ -146,6 +146,7 @@ describe("agent dispatch", () => {
       const exitCode = await dispatchAgent({
         userQuery: "test query",
         promptFile,
+        subagentRoot: targetRoot,
         dryRun: false,
         wait: false,
         vscodeCmd: "code",
@@ -168,6 +169,7 @@ describe("agent dispatch", () => {
       const exitCode = await dispatchAgent({
         userQuery: "test query",
         promptFile: path.join(tmpDir, "nonexistent.md"),
+        subagentRoot: targetRoot,
         dryRun: false,
         wait: false,
         vscodeCmd: "code",
@@ -190,6 +192,7 @@ describe("agent dispatch", () => {
       const exitCode = await dispatchAgent({
         userQuery: "test query",
         promptFile,
+        subagentRoot: targetRoot,
         dryRun: true,
         wait: false,
         vscodeCmd: "code",
@@ -213,18 +216,29 @@ describe("agent dispatch", () => {
         dryRun: false,
       });
 
-      // Mock the .alive file creation to simulate workspace ready
       const subagentDir = path.join(targetRoot, "subagent-1");
       const aliveFile = path.join(subagentDir, ".alive");
-
-      // Create .alive file after a short delay to simulate workspace opening
-      setTimeout(async () => {
-        await writeFile(aliveFile, "");
-      }, 100);
+      
+      // Mock spawn to create .alive file when chat command is called
+      const { spawn } = await import("child_process");
+      vi.mocked(spawn).mockImplementation((command: string, args?: readonly string[]) => {
+        // If this is a chat command with "create a file named .alive", create the file
+        if (args && args.includes("chat") && args.includes("create a file named .alive")) {
+          setTimeout(async () => {
+            await writeFile(aliveFile, "").catch(() => {});
+          }, 10);
+        }
+        return {
+          on: vi.fn(),
+          stdout: { on: vi.fn() },
+          stderr: { on: vi.fn() },
+        } as any;
+      });
 
       const exitCode = await dispatchAgent({
         userQuery: "test query",
         promptFile,
+        subagentRoot: targetRoot,
         dryRun: false,
         wait: false,
         vscodeCmd: "code",
@@ -250,14 +264,27 @@ describe("agent dispatch", () => {
 
       const subagentDir = path.join(targetRoot, "subagent-1");
       const aliveFile = path.join(subagentDir, ".alive");
-
-      setTimeout(async () => {
-        await writeFile(aliveFile, "");
-      }, 100);
+      
+      // Mock spawn to create .alive file when chat command is called
+      const { spawn } = await import("child_process");
+      vi.mocked(spawn).mockImplementation((command: string, args?: readonly string[]) => {
+        // If this is a chat command with "create a file named .alive", create the file
+        if (args && args.includes("chat") && args.includes("create a file named .alive")) {
+          setTimeout(async () => {
+            await writeFile(aliveFile, "").catch(() => {});
+          }, 10);
+        }
+        return {
+          on: vi.fn(),
+          stdout: { on: vi.fn() },
+          stderr: { on: vi.fn() },
+        } as any;
+      });
 
       const exitCode = await dispatchAgent({
         userQuery: "test query",
         promptFile,
+        subagentRoot: targetRoot,
         dryRun: false,
         wait: false,
         vscodeCmd: "code",
