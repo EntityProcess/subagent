@@ -8,6 +8,29 @@ import {
 } from "./vscode/agentDispatch.js";
 import { provisionSubagents, unlockSubagents } from "./vscode/provision.js";
 import { DEFAULT_LOCK_NAME, DEFAULT_SUBAGENT_ROOT, DEFAULT_TEMPLATE_DIR } from "./vscode/constants.js";
+import { logger } from "./utils/logger.js";
+
+// Global error handlers
+process.on("uncaughtException", (err) => {
+  logger.error({ err }, "Uncaught exception");
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error({ reason, promise }, "Unhandled rejection");
+  process.exit(1);
+});
+
+// Graceful shutdown
+process.on("SIGINT", () => {
+  logger.info("Received SIGINT, shutting down...");
+  process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+  logger.info("Received SIGTERM, shutting down...");
+  process.exit(0);
+});
 
 const program = new Command();
 
@@ -90,7 +113,7 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
           }
         }
       } catch (error) {
-        console.error(`error: ${(error as Error).message}`);
+        logger.error({ err: error }, "Provision failed");
         process.exitCode = 1;
       }
     });
@@ -118,7 +141,7 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
           process.exitCode = exitCode;
         }
       } catch (error) {
-        console.error(`error: ${(error as Error).message}`);
+        logger.error({ err: error }, "Chat dispatch failed");
         process.exitCode = 1;
       }
     });
@@ -141,7 +164,7 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
           process.exitCode = exitCode;
         }
       } catch (error) {
-        console.error(`error: ${(error as Error).message}`);
+        logger.error({ err: error }, "Warmup failed");
         process.exitCode = 1;
       }
     });
@@ -161,7 +184,7 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
           process.exitCode = exitCode;
         }
       } catch (error) {
-        console.error(`error: ${(error as Error).message}`);
+        logger.error({ err: error }, "List failed");
         process.exitCode = 1;
       }
     });
@@ -199,7 +222,7 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
           console.log("dry run complete; no changes were made");
         }
       } catch (error) {
-        console.error(`error: ${(error as Error).message}`);
+        logger.error({ err: error }, "Unlock failed");
         process.exitCode = 1;
       }
     });

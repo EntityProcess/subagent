@@ -7,7 +7,7 @@
     "subagent": "./dist/cli.js"
   },
   "scripts": {
-    "build": "tsc && cpx \"src/vscode/subagent_template/**/*\" dist/vscode/subagent_template",
+    "build": "tsc && shx cp -r src/vscode/subagent_template dist/vscode/",
     "dev": "tsx src/cli.ts",
     "start": "node --enable-source-maps dist/cli.js",
     "test": "vitest run",
@@ -15,12 +15,15 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "commander": "^12.1.0"
+    "commander": "^12.1.0",
+    "json5": "^2.2.3",
+    "pino": "^9.5.0",
+    "rotating-file-stream": "^3.2.5"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",
     "@vitest/coverage-v8": "^2.1.8",
-    "cpx": "^1.5.0",
+    "shx": "^0.3.4",
     "tsx": "^4.7.2",
     "typescript": "^5.4.5",
     "vitest": "^2.1.8"
