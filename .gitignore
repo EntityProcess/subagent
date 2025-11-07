@@ -50,6 +50,9 @@ web_modules/
 # Optional npm cache directory
 .npm
 
+# Optional pnpm cache directory
+.pnpm-store
+
 # Optional eslint cache
 .eslintcache
 
@@ -64,6 +67,10 @@ web_modules/
 
 # Yarn Integrity file
 .yarn-integrity
+
+# Package manager lock files (pnpm-lock.yaml is tracked for consistency)
+package-lock.json
+yarn.lock
 
 # dotenv environment variable files
 .env

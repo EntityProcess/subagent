@@ -10,12 +10,12 @@ This is a TypeScript port of [subagent-py](https://github.com/christso/subagent-
 - `src/vscode/subagent_template/`: Template files copied into each provisioned subagent workspace
 
 ## Build, Test, and Development Commands
-- `npm install`: Install all dependencies
-- `npm run build`: Compile TypeScript to JavaScript and copy template files to dist/
-- `npm run dev -- <args>`: Run CLI directly from TypeScript source using tsx
-- `npm start -- <args>`: Run compiled JavaScript from dist/
-- `npm link`: Create global symlink for local testing
-- `npm test`: Run test suite (once tests are implemented)
+- `pnpm install`: Install all dependencies
+- `pnpm build`: Compile TypeScript to JavaScript and copy template files to dist/
+- `pnpm dev -- <args>`: Run CLI directly from TypeScript source using tsx
+- `pnpm start -- <args>`: Run compiled JavaScript from dist/
+- `pnpm link --global`: Create global symlink for local testing
+- `pnpm test`: Run test suite (once tests are implemented)
 
 ## Coding Style & Naming Conventions
 - Follow the TypeScript 5.x and ES2022 guidelines from `.github/instructions/typescript-5-es2022.instructions.md`
@@ -31,7 +31,7 @@ This is a TypeScript port of [subagent-py](https://github.com/christso/subagent-
 - Name test files `*.test.ts` or `*.spec.ts`
 - Structure tests alongside the modules they cover in a `tests/` or `__tests__/` directory
 - Mock file system operations and subprocess calls in tests
-- Ensure tests pass via `npm test` before opening a PR
+- Ensure tests pass via `pnpm test` before opening a PR
 
 ## Commit & Pull Request Guidelines
 - Write commits in the imperative mood (e.g., `Add Azure retry helper`)
@@ -45,10 +45,11 @@ This is a TypeScript port of [subagent-py](https://github.com/christso/subagent-
 - Template files in `src/vscode/subagent_template/` should remain generic and not contain user-specific data
 
 ## Dependencies & Package Management
-- Use npm for package management (npm 9+ recommended)
+- Use pnpm for package management (pnpm 9+ recommended)
 - Keep dependencies minimal and well-justified
 - Prefer stable, well-maintained packages
 - Document any platform-specific dependencies or requirements
+- pnpm provides faster installs, better disk space efficiency, and strict dependency resolution
 
 ## TypeScript Configuration
 - Target ES2022 for modern JavaScript features
