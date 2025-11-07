@@ -1,0 +1,23 @@
+{
+  "name": "subagent",
+  "version": "0.1.0",
+  "description": "TypeScript port of the Subagent CLI",
+  "type": "module",
+  "bin": {
+    "subagent": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc && cpx \"src/vscode/subagent_template/**/*\" dist/vscode/subagent_template",
+    "dev": "tsx src/cli.ts",
+    "start": "node --enable-source-maps dist/cli.js"
+  },
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "cpx": "^1.5.0",
+    "tsx": "^4.7.2",
+    "typescript": "^5.4.5"
+  }
+}
