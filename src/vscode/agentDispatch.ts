@@ -277,7 +277,7 @@ async function launchVsCodeWithChat(
   subagentDir: string,
   chatId: string,
   attachmentPaths: string[],
-  sudolangPrompt: string,
+  requestInstructions: string,
   timestamp: string,
   vscodeCmd: string,
 ): Promise<boolean> {
@@ -287,7 +287,7 @@ async function launchVsCodeWithChat(
     await mkdir(messagesDir, { recursive: true });
 
     const reqFile = path.join(messagesDir, `${timestamp}_req.md`);
-    await writeFile(reqFile, sudolangPrompt, { encoding: "utf8" });
+    await writeFile(reqFile, requestInstructions, { encoding: "utf8" });
 
     const chatArgs = ["-r", "chat", "-m", chatId];
     for (const attachment of attachmentPaths) {
@@ -366,7 +366,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
     const responseFileTmp = path.join(messagesDir, `${timestamp}_res.tmp.md`);
     const responseFileFinal = path.join(messagesDir, `${timestamp}_res.md`);
 
-    const sudolangPrompt = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal, path.basename(subagentDir));
+    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal, path.basename(subagentDir));
 
     process.stdout.write(
       `${JSON.stringify({ success: true, subagent_name: path.basename(subagentDir), response_file: responseFileFinal })}\n`,
@@ -376,7 +376,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
       return 0;
     }
 
-    const launchSuccess = await launchVsCodeWithChat(subagentDir, chatId, attachments, sudolangPrompt, timestamp, vscodeCmd);
+    const launchSuccess = await launchVsCodeWithChat(subagentDir, chatId, attachments, requestInstructions, timestamp, vscodeCmd);
     if (!launchSuccess) {
       return 1;
     }
@@ -484,7 +484,7 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
     const responseFileTmp = path.join(messagesDir, `${timestamp}_res.tmp.md`);
     const responseFileFinal = path.join(messagesDir, `${timestamp}_res.md`);
 
-    const sudolangPrompt = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal, subagentName);
+    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal, subagentName);
 
     if (dryRun) {
       return {
@@ -499,7 +499,7 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
       subagentDir,
       chatId,
       attachments,
-      sudolangPrompt,
+      requestInstructions,
       timestamp,
       vscodeCmd,
     );
