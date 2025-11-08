@@ -411,6 +411,145 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
   }
 }
 
+export interface DispatchSessionResult {
+  readonly exitCode: number;
+  readonly subagentName?: string;
+  readonly responseFile?: string;
+  readonly tempFile?: string;
+  readonly error?: string;
+}
+
+export async function dispatchAgentSession(options: DispatchOptions): Promise<DispatchSessionResult> {
+  const {
+    userQuery,
+    promptFile,
+    extraAttachments,
+    dryRun = false,
+    wait = true,
+    vscodeCmd = "code",
+    subagentRoot,
+  } = options;
+
+  try {
+    const resolvedPrompt = path.resolve(promptFile);
+    if (!(await pathExists(resolvedPrompt))) {
+      return {
+        exitCode: 1,
+        error: `Prompt file not found: ${resolvedPrompt}`,
+      };
+    }
+
+    const promptStats = await stat(resolvedPrompt);
+    if (!promptStats.isFile()) {
+      return {
+        exitCode: 1,
+        error: `Prompt file must be a file, not a directory: ${resolvedPrompt}`,
+      };
+    }
+
+    const subagentRootPath = subagentRoot ?? getSubagentRoot();
+    const subagentDir = await findUnlockedSubagent(subagentRootPath);
+    if (!subagentDir) {
+      return {
+        exitCode: 1,
+        error:
+          "No unlocked subagents available. Provision additional subagents with: subagent code provision --subagents <desired_total>",
+      };
+    }
+
+    const subagentName = path.basename(subagentDir);
+    const chatId = Math.random().toString(16).slice(2, 10);
+    const preparationResult = await prepareSubagentDirectory(subagentDir, resolvedPrompt, chatId, dryRun);
+    if (preparationResult !== 0) {
+      return {
+        exitCode: preparationResult,
+        subagentName,
+        error: "Failed to prepare subagent workspace",
+      };
+    }
+
+    let attachments: string[];
+    try {
+      attachments = await resolveAttachments(extraAttachments);
+    } catch (attachmentError) {
+      return {
+        exitCode: 1,
+        subagentName,
+        error: (attachmentError as Error).message,
+      };
+    }
+
+    const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+    const messagesDir = path.join(subagentDir, "messages");
+    const responseFileTmp = path.join(messagesDir, `${timestamp}_res.tmp.md`);
+    const responseFileFinal = path.join(messagesDir, `${timestamp}_res.md`);
+
+    const sudolangPrompt = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal, subagentName);
+
+    if (dryRun) {
+      return {
+        exitCode: 0,
+        subagentName,
+        responseFile: responseFileFinal,
+        tempFile: responseFileTmp,
+      };
+    }
+
+    const launchSuccess = await launchVsCodeWithChat(
+      subagentDir,
+      chatId,
+      attachments,
+      sudolangPrompt,
+      timestamp,
+      vscodeCmd,
+    );
+
+    if (!launchSuccess) {
+      return {
+        exitCode: 1,
+        subagentName,
+        responseFile: responseFileFinal,
+        tempFile: responseFileTmp,
+        error: "Failed to launch VS Code for subagent session",
+      };
+    }
+
+    if (!wait) {
+      return {
+        exitCode: 0,
+        subagentName,
+        responseFile: responseFileFinal,
+        tempFile: responseFileTmp,
+      };
+    }
+
+    const received = await waitForResponseOutput(responseFileFinal);
+    if (!received) {
+      return {
+        exitCode: 1,
+        subagentName,
+        responseFile: responseFileFinal,
+        tempFile: responseFileTmp,
+        error: "Timed out waiting for agent response",
+      };
+    }
+
+    await removeSubagentLock(subagentDir);
+
+    return {
+      exitCode: 0,
+      subagentName,
+      responseFile: responseFileFinal,
+      tempFile: responseFileTmp,
+    };
+  } catch (error) {
+    return {
+      exitCode: 1,
+      error: (error as Error).message,
+    };
+  }
+}
+
 export interface ListOptions {
   subagentRoot?: string;
   jsonOutput?: boolean;

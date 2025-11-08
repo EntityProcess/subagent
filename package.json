@@ -1,12 +1,23 @@
 {
   "name": "subagent",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "CLI tool for managing workspace agents across VS Code",
   "type": "module",
   "bin": {
     "subagent": "./dist/cli.js"
   },
-  "main": "./dist/cli.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./cli": {
+      "import": "./dist/cli.js"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist",
     "README.md",

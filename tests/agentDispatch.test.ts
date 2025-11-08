@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdir, writeFile } from "fs/promises";
 import os from "os";
 import path from "path";
-import { dispatchAgent, findUnlockedSubagent, listSubagents } from "../src/vscode/agentDispatch.js";
+import {
+  dispatchAgent,
+  dispatchAgentSession,
+  findUnlockedSubagent,
+  listSubagents,
+} from "../src/vscode/agentDispatch.js";
 import { provisionSubagents } from "../src/vscode/provision.js";
 import { DEFAULT_LOCK_NAME, DEFAULT_WORKSPACE_FILENAME } from "../src/vscode/constants.js";
 import { pathExists } from "../src/utils/fs.js";
@@ -296,6 +301,34 @@ describe("agent dispatch", () => {
       const files = await import("fs/promises").then((fs) => fs.readdir(subagentDir));
       const chatmodeFiles = files.filter((f) => f.endsWith(".chatmode.md"));
       expect(chatmodeFiles.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("dispatchAgentSession", () => {
+    it("returns structured data in dry run mode", async () => {
+      await provisionSubagents({
+        templateDir,
+        targetRoot,
+        subagents: 1,
+        lockName: DEFAULT_LOCK_NAME,
+        force: false,
+        dryRun: false,
+      });
+
+      const result = await dispatchAgentSession({
+        userQuery: "test query",
+        promptFile,
+        subagentRoot: targetRoot,
+        dryRun: true,
+        wait: true,
+        vscodeCmd: "code",
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.subagentName).toBe("subagent-1");
+      expect(result.responseFile).toBeDefined();
+      expect(result.tempFile).toBeDefined();
+      expect(result.error).toBeUndefined();
     });
   });
 
