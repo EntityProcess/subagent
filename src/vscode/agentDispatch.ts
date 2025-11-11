@@ -257,6 +257,7 @@ function createRequestPrompt(
   responseFileTmp: string,
   responseFileFinal: string,
   subagentName: string,
+  vscodeCmd: string,
 ): string {
   return String.raw`[[ ## task ## ]]
 ${userQuery}
@@ -268,7 +269,7 @@ ${userQuery}
 2. When completely finished, run these PowerShell commands to signal completion:
 \`\`\`
 Move-Item -LiteralPath '${responseFileTmp}' -Destination '${responseFileFinal}'
-subagent code unlock --subagent ${subagentName}
+subagent ${vscodeCmd} unlock --subagent ${subagentName}
 \`\`\`
 
 Do not proceed to step 2 until your response is completely written to the temporary file.`;
@@ -388,7 +389,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
     const responseFileTmp = path.join(messagesDir, `${timestamp}_res.tmp.md`);
     const responseFileFinal = path.join(messagesDir, `${timestamp}_res.md`);
 
-    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal, path.basename(subagentDir));
+    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal, path.basename(subagentDir), vscodeCmd);
 
     process.stdout.write(
       `${JSON.stringify({ success: true, subagent_name: path.basename(subagentDir), response_file: responseFileFinal })}\n`,
@@ -510,7 +511,7 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
     const responseFileTmp = path.join(messagesDir, `${timestamp}_res.tmp.md`);
     const responseFileFinal = path.join(messagesDir, `${timestamp}_res.md`);
 
-    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal, subagentName);
+    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal, subagentName, vscodeCmd);
 
     if (dryRun) {
       return {
