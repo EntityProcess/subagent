@@ -123,10 +123,23 @@ async function ensureWorkspaceFocused(
   return true;
 }
 
-async function copyAgentConfig(subagentDir: string): Promise<{ workspace: string; messagesDir: string }> {
-  const workspaceSrc = path.join(DEFAULT_TEMPLATE_DIR, DEFAULT_WORKSPACE_FILENAME);
+async function copyAgentConfig(
+  subagentDir: string,
+  workspaceTemplate?: string,
+): Promise<{ workspace: string; messagesDir: string }> {
+  // Determine workspace source - use custom if provided, otherwise default
+  const workspaceSrc = workspaceTemplate
+    ? path.resolve(workspaceTemplate)
+    : path.join(DEFAULT_TEMPLATE_DIR, DEFAULT_WORKSPACE_FILENAME);
+
+  // Validate the workspace template exists
   if (!(await pathExists(workspaceSrc))) {
-    throw new Error(`Default workspace template not found: ${workspaceSrc}`);
+    throw new Error(`workspace template not found: ${workspaceSrc}`);
+  }
+
+  const stats = await stat(workspaceSrc);
+  if (!stats.isFile()) {
+    throw new Error(`workspace template must be a file, not a directory: ${workspaceSrc}`);
   }
 
   const workspaceDst = path.join(subagentDir, `${path.basename(subagentDir)}.code-workspace`);
@@ -205,6 +218,7 @@ async function prepareSubagentDirectory(
   subagentDir: string,
   promptFile: string | undefined,
   chatId: string,
+  workspaceTemplate: string | undefined,
   dryRun: boolean,
 ): Promise<number> {
   if (dryRun) {
@@ -212,7 +226,7 @@ async function prepareSubagentDirectory(
   }
 
   try {
-    await copyAgentConfig(subagentDir);
+    await copyAgentConfig(subagentDir, workspaceTemplate);
   } catch (error) {
     console.error(`error: ${(error as Error).message}`);
     return 1;
@@ -317,6 +331,7 @@ export interface DispatchOptions {
   userQuery: string;
   promptFile?: string;
   extraAttachments?: readonly string[];
+  workspaceTemplate?: string;
   dryRun?: boolean;
   wait?: boolean;
   vscodeCmd?: string;
@@ -328,6 +343,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
     userQuery,
     promptFile,
     extraAttachments,
+    workspaceTemplate,
     dryRun = false,
     wait = false,
     vscodeCmd = "code",
@@ -360,7 +376,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
     console.error(`info: Acquiring subagent: ${path.basename(subagentDir)}`);
 
     const chatId = Math.random().toString(16).slice(2, 10);
-    const preparationResult = await prepareSubagentDirectory(subagentDir, resolvedPrompt, chatId, dryRun);
+    const preparationResult = await prepareSubagentDirectory(subagentDir, resolvedPrompt, chatId, workspaceTemplate, dryRun);
     if (preparationResult !== 0) {
       return preparationResult;
     }
@@ -430,6 +446,7 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
     userQuery,
     promptFile,
     extraAttachments,
+    workspaceTemplate,
     dryRun = false,
     wait = true,
     vscodeCmd = "code",
@@ -468,7 +485,7 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
 
     const subagentName = path.basename(subagentDir);
     const chatId = Math.random().toString(16).slice(2, 10);
-    const preparationResult = await prepareSubagentDirectory(subagentDir, resolvedPrompt, chatId, dryRun);
+    const preparationResult = await prepareSubagentDirectory(subagentDir, resolvedPrompt, chatId, workspaceTemplate, dryRun);
     if (preparationResult !== 0) {
       return {
         exitCode: preparationResult,

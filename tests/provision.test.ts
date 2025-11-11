@@ -36,7 +36,6 @@ describe("provision", () => {
 
   it("should provision a single subagent", async () => {
     const result = await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 1,
       lockName: DEFAULT_LOCK_NAME,
@@ -55,7 +54,6 @@ describe("provision", () => {
 
   it("should provision multiple subagents", async () => {
     const result = await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 3,
       lockName: DEFAULT_LOCK_NAME,
@@ -76,7 +74,6 @@ describe("provision", () => {
   it("should skip existing unlocked subagents", async () => {
     // Create initial subagent
     await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 1,
       lockName: DEFAULT_LOCK_NAME,
@@ -86,7 +83,6 @@ describe("provision", () => {
 
     // Provision again without force
     const result = await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 1,
       lockName: DEFAULT_LOCK_NAME,
@@ -102,7 +98,6 @@ describe("provision", () => {
   it("should skip locked subagents without force", async () => {
     // Create initial subagent
     await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 1,
       lockName: DEFAULT_LOCK_NAME,
@@ -116,7 +111,6 @@ describe("provision", () => {
 
     // Request 1 unlocked subagent - should create subagent-2
     const result = await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 1,
       lockName: DEFAULT_LOCK_NAME,
@@ -137,7 +131,6 @@ describe("provision", () => {
   it("should overwrite unlocked subagents with force", async () => {
     // Create initial subagent
     await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 1,
       lockName: DEFAULT_LOCK_NAME,
@@ -151,7 +144,6 @@ describe("provision", () => {
 
     // Provision with force
     const result = await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 1,
       lockName: DEFAULT_LOCK_NAME,
@@ -171,7 +163,6 @@ describe("provision", () => {
   it("should unlock and overwrite locked subagents with force", async () => {
     // Create 2 initial subagents
     await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 2,
       lockName: DEFAULT_LOCK_NAME,
@@ -187,7 +178,6 @@ describe("provision", () => {
 
     // Request 2 subagents with force
     const result = await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 2,
       lockName: DEFAULT_LOCK_NAME,
@@ -210,7 +200,6 @@ describe("provision", () => {
 
   it("should not create files during dry run", async () => {
     const result = await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 2,
       lockName: DEFAULT_LOCK_NAME,
@@ -227,23 +216,9 @@ describe("provision", () => {
     expect(await pathExists(path.join(targetRoot, "subagent-2"))).toBe(false);
   });
 
-  it("should throw error for invalid template path", async () => {
-    await expect(
-      provisionSubagents({
-        templateDir: "/nonexistent/path",
-        targetRoot,
-        subagents: 1,
-        lockName: DEFAULT_LOCK_NAME,
-        force: false,
-        dryRun: false,
-      }),
-    ).rejects.toThrow("not a directory");
-  });
-
   it("should throw error for zero subagents", async () => {
     await expect(
       provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 0,
         lockName: DEFAULT_LOCK_NAME,
@@ -256,7 +231,6 @@ describe("provision", () => {
   it("should provision additional subagents when existing ones are locked", async () => {
     // Create 2 initial subagents
     await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 2,
       lockName: DEFAULT_LOCK_NAME,
@@ -270,7 +244,6 @@ describe("provision", () => {
 
     // Request 2 unlocked subagents
     const result = await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 2,
       lockName: DEFAULT_LOCK_NAME,
@@ -294,7 +267,6 @@ describe("provision", () => {
   it("should handle partial locked subagents", async () => {
     // Create 3 initial subagents
     await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 3,
       lockName: DEFAULT_LOCK_NAME,
@@ -308,7 +280,6 @@ describe("provision", () => {
 
     // Request 2 unlocked subagents
     const result = await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 2,
       lockName: DEFAULT_LOCK_NAME,
@@ -328,7 +299,6 @@ describe("provision", () => {
   it("should handle force with mixed locked and unlocked subagents", async () => {
     // Create 4 initial subagents
     await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 4,
       lockName: DEFAULT_LOCK_NAME,
@@ -344,7 +314,6 @@ describe("provision", () => {
 
     // Request 2 subagents with force
     const result = await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 2,
       lockName: DEFAULT_LOCK_NAME,
@@ -365,3 +334,4 @@ describe("provision", () => {
     expect(await pathExists(lockFile2)).toBe(false);
   });
 });
+

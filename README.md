@@ -59,15 +59,20 @@ npm link
    ```
    This blocks until the agent completes and prints the response to stdout.
 
+4. **Use a custom workspace template**:
+   ```bash
+   subagent code chat "Your query here" --workspace-template ./my-workspace.code-workspace
+   ```
+   This uses a custom `.code-workspace` file with your preferred settings, extensions, and folder configurations.
+
 ### Command Reference
 
 **Provision subagents**:
 ```bash
-subagent code provision --subagents <count> [--force] [--template <path>] [--target-root <path>] [--warmup]
+subagent code provision --subagents <count> [--force] [--target-root <path>] [--warmup]
 ```
 - `--subagents <count>`: Number of workspaces to create
 - `--force`: Unlock and overwrite all subagent directories regardless of lock status
-- `--template <path>`: Custom template directory
 - `--target-root <path>`: Custom destination (default: `~/.subagent/vscode-agents` or `~/.subagent/vscode-insiders-agents` for code-insiders)
 - `--dry-run`: Preview without making changes
 - `--warmup`: Launch VS Code for the provisioned workspaces once provisioning finishes
@@ -82,10 +87,11 @@ subagent code warmup [--subagents <count>] [--target-root <path>] [--dry-run]
 
 **Start a chat with an agent**:
 ```bash
-subagent code chat <query> [--prompt <prompt_file>] [--attachment <path>] [--wait] [--dry-run]
+subagent code chat <query> [--prompt <prompt_file>] [--workspace-template <path>] [--attachment <path>] [--wait] [--dry-run]
 ```
 - `<query>`: User query to pass to the agent (required)
 - `--prompt <prompt_file>`: Path to a prompt file to copy and attach (optional)
+- `--workspace-template <path>`: Path to a custom .code-workspace file to use as template (optional)
 - `--attachment <path>` / `-a`: Additional files to attach (repeatable)
 - `--wait` / `-w`: Wait for response and print to stdout (sync mode). Default is async mode.
 - `--dry-run`: Preview without launching VS Code

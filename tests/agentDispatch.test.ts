@@ -46,6 +46,7 @@ describe("agent dispatch", () => {
   let templateDir: string;
   let targetRoot: string;
   let promptFile: string;
+  let customWorkspaceTemplate: string;
 
   beforeEach(async () => {
     // Create temporary directory for tests
@@ -65,6 +66,10 @@ describe("agent dispatch", () => {
     // Create a test prompt file
     promptFile = path.join(tmpDir, "test-prompt.md");
     await writeFile(promptFile, "# Test Prompt\n\nTest instructions");
+
+    // Create a custom workspace template file
+    customWorkspaceTemplate = path.join(tmpDir, "custom.code-workspace");
+    await writeFile(customWorkspaceTemplate, JSON.stringify({ folders: [{ path: "." }], settings: { "custom.setting": true } }));
   });
 
   afterEach(async () => {
@@ -405,6 +410,168 @@ describe("agent dispatch", () => {
 
       const parsed = JSON.parse(output);
       expect(parsed.subagents).toHaveLength(2);
+    });
+  });
+
+  describe("custom workspace template", () => {
+    it("should use custom workspace template when provided", async () => {
+      // Provision 1 subagent
+      await provisionSubagents({
+        targetRoot,
+        subagents: 1,
+        lockName: DEFAULT_LOCK_NAME,
+        force: false,
+        dryRun: false,
+      });
+
+      const subagentDir = path.join(targetRoot, "subagent-1");
+      const aliveFile = path.join(subagentDir, ".alive");
+
+      // Mock spawn to create .alive file when chat command is called
+      const { spawn } = await import("child_process");
+      vi.mocked(spawn).mockImplementation((command: string, args?: readonly string[]) => {
+        if (args && args.includes("chat") && args.includes("create a file named .alive")) {
+          setTimeout(async () => {
+            await writeFile(aliveFile, "").catch(() => {});
+          }, 10);
+        }
+        return {
+          on: vi.fn(),
+          stdout: { on: vi.fn() },
+          stderr: { on: vi.fn() },
+        } as any;
+      });
+
+      const exitCode = await dispatchAgent({
+        userQuery: "test query",
+        promptFile,
+        workspaceTemplate: customWorkspaceTemplate,
+        subagentRoot: targetRoot,
+        dryRun: false,
+        wait: false,
+        vscodeCmd: "code",
+      });
+
+      expect(exitCode).toBe(0);
+
+      // Verify custom workspace template was copied
+      const workspaceFile = path.join(subagentDir, "subagent-1.code-workspace");
+      expect(await pathExists(workspaceFile)).toBe(true);
+
+      const { readFile } = await import("fs/promises");
+      const workspaceContent = JSON.parse(await readFile(workspaceFile, "utf8"));
+      expect(workspaceContent.settings).toEqual({ "custom.setting": true });
+    });
+
+    it("should return error for nonexistent workspace template", async () => {
+      await provisionSubagents({
+        targetRoot,
+        subagents: 1,
+        lockName: DEFAULT_LOCK_NAME,
+        force: false,
+        dryRun: false,
+      });
+
+      const exitCode = await dispatchAgent({
+        userQuery: "test query",
+        workspaceTemplate: path.join(tmpDir, "nonexistent.code-workspace"),
+        subagentRoot: targetRoot,
+        dryRun: false,
+        wait: false,
+        vscodeCmd: "code",
+      });
+
+      expect(exitCode).toBe(1);
+    });
+
+    it("should return error when workspace template is a directory", async () => {
+      await provisionSubagents({
+        targetRoot,
+        subagents: 1,
+        lockName: DEFAULT_LOCK_NAME,
+        force: false,
+        dryRun: false,
+      });
+
+      // Create a directory instead of a file
+      const dirTemplate = path.join(tmpDir, "dir-template");
+      await mkdir(dirTemplate, { recursive: true });
+
+      const exitCode = await dispatchAgent({
+        userQuery: "test query",
+        workspaceTemplate: dirTemplate,
+        subagentRoot: targetRoot,
+        dryRun: false,
+        wait: false,
+        vscodeCmd: "code",
+      });
+
+      expect(exitCode).toBe(1);
+    });
+
+    it("should use default template when no workspace template specified", async () => {
+      await provisionSubagents({
+        targetRoot,
+        subagents: 1,
+        lockName: DEFAULT_LOCK_NAME,
+        force: false,
+        dryRun: false,
+      });
+
+      const subagentDir = path.join(targetRoot, "subagent-1");
+      const aliveFile = path.join(subagentDir, ".alive");
+
+      const { spawn } = await import("child_process");
+      vi.mocked(spawn).mockImplementation((command: string, args?: readonly string[]) => {
+        if (args && args.includes("chat") && args.includes("create a file named .alive")) {
+          setTimeout(async () => {
+            await writeFile(aliveFile, "").catch(() => {});
+          }, 10);
+        }
+        return {
+          on: vi.fn(),
+          stdout: { on: vi.fn() },
+          stderr: { on: vi.fn() },
+        } as any;
+      });
+
+      const exitCode = await dispatchAgent({
+        userQuery: "test query",
+        promptFile,
+        // No workspaceTemplate specified
+        subagentRoot: targetRoot,
+        dryRun: false,
+        wait: false,
+        vscodeCmd: "code",
+      });
+
+      expect(exitCode).toBe(0);
+
+      // Workspace file should exist (using default template)
+      const workspaceFile = path.join(subagentDir, "subagent-1.code-workspace");
+      expect(await pathExists(workspaceFile)).toBe(true);
+    });
+
+    it("should work with dispatchAgentSession", async () => {
+      await provisionSubagents({
+        targetRoot,
+        subagents: 1,
+        lockName: DEFAULT_LOCK_NAME,
+        force: false,
+        dryRun: false,
+      });
+
+      const result = await dispatchAgentSession({
+        userQuery: "test query",
+        workspaceTemplate: customWorkspaceTemplate,
+        subagentRoot: targetRoot,
+        dryRun: true,
+        wait: false,
+        vscodeCmd: "code",
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.subagentName).toBe("subagent-1");
     });
   });
 });
