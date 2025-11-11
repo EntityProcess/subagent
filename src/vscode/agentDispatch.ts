@@ -202,7 +202,7 @@ async function waitForResponseOutput(responseFileFinal: string, pollInterval = 1
 
 async function prepareSubagentDirectory(
   subagentDir: string,
-  promptFile: string,
+  promptFile: string | undefined,
   chatId: string,
   dryRun: boolean,
 ): Promise<number> {
@@ -224,12 +224,14 @@ async function prepareSubagentDirectory(
     return 1;
   }
 
-  const chatmodeFile = path.join(subagentDir, `${chatId}.chatmode.md`);
-  try {
-    await copyFile(promptFile, chatmodeFile);
-  } catch (error) {
-    console.error(`error: Failed to copy prompt file to chatmode: ${(error as Error).message}`);
-    return 1;
+  if (promptFile) {
+    const chatmodeFile = path.join(subagentDir, `${chatId}.chatmode.md`);
+    try {
+      await copyFile(promptFile, chatmodeFile);
+    } catch (error) {
+      console.error(`error: Failed to copy prompt file to chatmode: ${(error as Error).message}`);
+      return 1;
+    }
   }
 
   return 0;
@@ -312,7 +314,7 @@ async function launchVsCodeWithChat(
 
 export interface DispatchOptions {
   userQuery: string;
-  promptFile: string;
+  promptFile?: string;
   extraAttachments?: readonly string[];
   dryRun?: boolean;
   wait?: boolean;
@@ -332,14 +334,17 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
   } = options;
 
   try {
-    const resolvedPrompt = path.resolve(promptFile);
-    if (!(await pathExists(resolvedPrompt))) {
-      throw new Error(`Prompt file not found: ${resolvedPrompt}`);
-    }
+    let resolvedPrompt: string | undefined;
+    if (promptFile) {
+      resolvedPrompt = path.resolve(promptFile);
+      if (!(await pathExists(resolvedPrompt))) {
+        throw new Error(`Prompt file not found: ${resolvedPrompt}`);
+      }
 
-    const promptStats = await stat(resolvedPrompt);
-    if (!promptStats.isFile()) {
-      throw new Error(`Prompt file must be a file, not a directory: ${resolvedPrompt}`);
+      const promptStats = await stat(resolvedPrompt);
+      if (!promptStats.isFile()) {
+        throw new Error(`Prompt file must be a file, not a directory: ${resolvedPrompt}`);
+      }
     }
 
     const subagentRootPath = subagentRoot ?? getSubagentRoot();
@@ -431,20 +436,23 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
   } = options;
 
   try {
-    const resolvedPrompt = path.resolve(promptFile);
-    if (!(await pathExists(resolvedPrompt))) {
-      return {
-        exitCode: 1,
-        error: `Prompt file not found: ${resolvedPrompt}`,
-      };
-    }
+    let resolvedPrompt: string | undefined;
+    if (promptFile) {
+      resolvedPrompt = path.resolve(promptFile);
+      if (!(await pathExists(resolvedPrompt))) {
+        return {
+          exitCode: 1,
+          error: `Prompt file not found: ${resolvedPrompt}`,
+        };
+      }
 
-    const promptStats = await stat(resolvedPrompt);
-    if (!promptStats.isFile()) {
-      return {
-        exitCode: 1,
-        error: `Prompt file must be a file, not a directory: ${resolvedPrompt}`,
-      };
+      const promptStats = await stat(resolvedPrompt);
+      if (!promptStats.isFile()) {
+        return {
+          exitCode: 1,
+          error: `Prompt file must be a file, not a directory: ${resolvedPrompt}`,
+        };
+      }
     }
 
     const subagentRootPath = subagentRoot ?? getSubagentRoot();

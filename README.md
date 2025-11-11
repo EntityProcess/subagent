@@ -48,14 +48,14 @@ npm link
 
 2. **Start a chat with an agent (async mode - default)**:
    ```bash
-   subagent code chat <prompt_file> "Your query here"
+   subagent code chat "Your query here" [--prompt <prompt_file>]
    ```
-   This claims an unlocked subagent, copies your prompt file and any attachments, opens VS Code with a wakeup chatmode, and returns immediately.
+   This claims an unlocked subagent, copies your prompt file (if provided) and any attachments, opens VS Code with a wakeup chatmode, and returns immediately.
    The agent writes its response to a file that you can monitor or read later.
 
 3. **Start a chat with an agent (sync mode - wait for response)**:
    ```bash
-   subagent code chat <prompt_file> "Your query here" --wait
+   subagent code chat "Your query here" [--prompt <prompt_file>] --wait
    ```
    This blocks until the agent completes and prints the response to stdout.
 
@@ -82,10 +82,10 @@ subagent code warmup [--subagents <count>] [--target-root <path>] [--dry-run]
 
 **Start a chat with an agent**:
 ```bash
-subagent code chat <prompt_file> <query> [--attachment <path>] [--wait] [--dry-run]
+subagent code chat <query> [--prompt <prompt_file>] [--attachment <path>] [--wait] [--dry-run]
 ```
-- `<prompt_file>`: Path to a prompt file to copy and attach (e.g., `vscode-expert.prompt.md`)
-- `<query>`: User query to pass to the agent
+- `<query>`: User query to pass to the agent (required)
+- `--prompt <prompt_file>`: Path to a prompt file to copy and attach (optional)
 - `--attachment <path>` / `-a`: Additional files to attach (repeatable)
 - `--wait` / `-w`: Wait for response and print to stdout (sync mode). Default is async mode.
 - `--dry-run`: Preview without launching VS Code
@@ -113,7 +113,7 @@ subagent code unlock [--subagent <name>] [--all] [--target-root <path>] [--dry-r
 All commands are also available with `code-insiders` instead of `code`:
 ```bash
 subagent code-insiders provision --subagents 3
-subagent code-insiders chat <prompt_file> "query"
+subagent code-insiders chat "query" --prompt <prompt_file>
 subagent code-insiders warmup
 subagent code-insiders list
 subagent code-insiders unlock --all

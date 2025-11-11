@@ -119,19 +119,20 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
     });
 
   parent
-    .command("chat <promptFile> <query>")
+    .command("chat <query>")
     .description("Start a chat with an agent in an isolated subagent workspace")
+    .option("--prompt <promptFile>", "Path to a prompt file to copy and attach")
     .option("-a, --attachment <path>", "Additional attachment to forward to the chat", (value: string, previous: string[] = []) => {
       previous.push(value);
       return previous;
     })
     .option("--dry-run", "Print what would be done without making changes", false)
     .option("-w, --wait", "Wait for response and print to stdout (sync mode)", false)
-    .action(async (promptFile: string, query: string, options) => {
+    .action(async (query: string, options) => {
       try {
         const exitCode = await dispatchAgent({
           userQuery: query,
-          promptFile,
+          promptFile: options.prompt,
           extraAttachments: options.attachment as string[] | undefined,
           dryRun: Boolean(options.dryRun),
           wait: Boolean(options.wait),
