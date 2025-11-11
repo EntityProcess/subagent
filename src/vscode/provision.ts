@@ -9,7 +9,6 @@ import {
 import { ensureDir, isDirectory, pathExists, readDirEntries, removeIfExists } from "../utils/fs.js";
 
 export interface ProvisionOptions {
-  templateDir?: string;
   targetRoot: string;
   subagents: number;
   lockName?: string;
@@ -25,13 +24,14 @@ export interface ProvisionResult {
 
 export async function provisionSubagents(options: ProvisionOptions): Promise<ProvisionResult> {
   const {
-    templateDir = DEFAULT_TEMPLATE_DIR,
     targetRoot,
     subagents,
     lockName = DEFAULT_LOCK_NAME,
     force = false,
     dryRun = false,
   } = options;
+
+  const templateDir = DEFAULT_TEMPLATE_DIR;
 
   if (!Number.isInteger(subagents) || subagents < 1) {
     throw new Error("subagents must be a positive integer");
