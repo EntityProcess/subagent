@@ -19,7 +19,7 @@ Users need a simple way to specify a custom VS Code workspace configuration file
 
 ## Impact
 
-- **Affected specs**: `workspace-provisioning`
+- **Affected specs**: `workspace-dispatch`
 - **Affected code**: 
   - `src/vscode/agentDispatch.ts` - Update `copyAgentConfig()` to accept workspaceTemplate parameter
   - `src/cli.ts` - Remove `--template` from provision command, add `--workspace-template` to chat command
