@@ -10,14 +10,15 @@ import {
   DEFAULT_TEMPLATE_DIR,
   DEFAULT_WAKEUP_FILENAME,
   DEFAULT_WORKSPACE_FILENAME,
+  getDefaultSubagentRoot,
 } from "./constants.js";
 import { pathExists, readDirEntries, removeIfExists } from "../utils/fs.js";
 import { sleep } from "../utils/time.js";
 
 const execAsync = promisify(exec);
 
-export function getSubagentRoot(): string {
-  return DEFAULT_SUBAGENT_ROOT;
+export function getSubagentRoot(vscodeCmd: string = "code"): string {
+  return getDefaultSubagentRoot(vscodeCmd);
 }
 
 export async function getAllSubagentWorkspaces(subagentRoot: string): Promise<string[]> {
@@ -347,7 +348,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
       }
     }
 
-    const subagentRootPath = subagentRoot ?? getSubagentRoot();
+    const subagentRootPath = subagentRoot ?? getSubagentRoot(vscodeCmd);
     const subagentDir = await findUnlockedSubagent(subagentRootPath);
     if (!subagentDir) {
       console.error(
@@ -455,7 +456,7 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
       }
     }
 
-    const subagentRootPath = subagentRoot ?? getSubagentRoot();
+    const subagentRootPath = subagentRoot ?? getSubagentRoot(vscodeCmd);
     const subagentDir = await findUnlockedSubagent(subagentRootPath);
     if (!subagentDir) {
       return {
@@ -561,22 +562,25 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
 export interface ListOptions {
   subagentRoot?: string;
   jsonOutput?: boolean;
+  vscodeCmd?: string;
 }
 
 export async function listSubagents(options: ListOptions): Promise<number> {
-  const { subagentRoot = getSubagentRoot(), jsonOutput = false } = options;
+  const { subagentRoot, jsonOutput = false, vscodeCmd = "code" } = options;
 
-  if (!(await pathExists(subagentRoot))) {
+  const resolvedSubagentRoot = subagentRoot ?? getSubagentRoot(vscodeCmd);
+
+  if (!(await pathExists(resolvedSubagentRoot))) {
     if (jsonOutput) {
       process.stdout.write(`${JSON.stringify({ subagents: [] })}\n`);
     } else {
-      console.error(`No subagents found in ${subagentRoot}`);
+      console.error(`No subagents found in ${resolvedSubagentRoot}`);
       console.error("hint: Provision subagents first with:\n  subagent code provision --subagents <count>");
     }
     return 1;
   }
 
-  const entries = await readDirEntries(subagentRoot);
+  const entries = await readDirEntries(resolvedSubagentRoot);
   const subagents = entries
     .filter((entry) => entry.isDirectory && entry.name.startsWith("subagent-"))
     .map((entry) => ({
@@ -590,7 +594,7 @@ export async function listSubagents(options: ListOptions): Promise<number> {
     if (jsonOutput) {
       process.stdout.write(`${JSON.stringify({ subagents: [] })}\n`);
     } else {
-      console.error(`No subagents found in ${subagentRoot}`);
+      console.error(`No subagents found in ${resolvedSubagentRoot}`);
       console.error("hint: Provision subagents first with:\n  subagent code provision --subagents <count>");
     }
     return 1;
@@ -621,7 +625,7 @@ export async function listSubagents(options: ListOptions): Promise<number> {
   const lockedCount = infoList.filter((info) => info.locked).length;
   const availableCount = infoList.length - lockedCount;
 
-  console.error(`Found ${infoList.length} subagent(s) in ${subagentRoot}`);
+  console.error(`Found ${infoList.length} subagent(s) in ${resolvedSubagentRoot}`);
   console.error(`  Available: ${availableCount}`);
   console.error(`  Locked: ${lockedCount}`);
   console.error("");
@@ -643,16 +647,18 @@ export interface WarmupOptions {
 
 export async function warmupSubagents(options: WarmupOptions): Promise<number> {
   const {
-    subagentRoot = getSubagentRoot(),
+    subagentRoot,
     subagents = 1,
     dryRun = false,
     vscodeCmd = "code",
   } = options;
 
-  const workspaces = await getAllSubagentWorkspaces(subagentRoot);
+  const resolvedSubagentRoot = subagentRoot ?? getSubagentRoot(vscodeCmd);
+
+  const workspaces = await getAllSubagentWorkspaces(resolvedSubagentRoot);
 
   if (workspaces.length === 0) {
-    console.error(`info: No provisioned subagents found in ${subagentRoot}`);
+    console.error(`info: No provisioned subagents found in ${resolvedSubagentRoot}`);
     console.error("hint: Provision subagents first with:\n  subagent code provision --subagents <count>");
     return 1;
   }

@@ -44,7 +44,7 @@ npm link
    ```bash
    subagent code provision --subagents 5 [--warmup]
    ```
-   This creates 5 isolated workspace directories in `~/.subagent/vscode-agents/`. Add `--warmup` to open the newly provisioned workspaces immediately.
+   This creates 5 isolated workspace directories in `~/.subagent/vscode-agents/` (or `~/.subagent/vscode-insiders-agents/` for code-insiders). Add `--warmup` to open the newly provisioned workspaces immediately.
 
 2. **Start a chat with an agent (async mode - default)**:
    ```bash
@@ -68,7 +68,7 @@ subagent code provision --subagents <count> [--force] [--template <path>] [--tar
 - `--subagents <count>`: Number of workspaces to create
 - `--force`: Unlock and overwrite all subagent directories regardless of lock status
 - `--template <path>`: Custom template directory
-- `--target-root <path>`: Custom destination (default: `~/.subagent/vscode-agents`)
+- `--target-root <path>`: Custom destination (default: `~/.subagent/vscode-agents` or `~/.subagent/vscode-insiders-agents` for code-insiders)
 - `--dry-run`: Preview without making changes
 - `--warmup`: Launch VS Code for the provisioned workspaces once provisioning finishes
 
@@ -77,7 +77,7 @@ subagent code provision --subagents <count> [--force] [--template <path>] [--tar
 subagent code warmup [--subagents <count>] [--target-root <path>] [--dry-run]
 ```
 - `--subagents <count>`: Number of workspaces to open (default: 1)
-- `--target-root <path>`: Custom subagent root directory
+- `--target-root <path>`: Custom subagent root directory (default: `~/.subagent/vscode-agents` or `~/.subagent/vscode-insiders-agents` for code-insiders)
 - `--dry-run`: Show which workspaces would be opened
 
 **Start a chat with an agent**:
@@ -96,7 +96,7 @@ subagent code chat <query> [--prompt <prompt_file>] [--attachment <path>] [--wai
 ```bash
 subagent code list [--target-root <path>] [--json]
 ```
-- `--target-root <path>`: Custom subagent root directory
+- `--target-root <path>`: Custom subagent root directory (default: `~/.subagent/vscode-agents` or `~/.subagent/vscode-insiders-agents` for code-insiders)
 - `--json`: Output results as JSON
 
 **Unlock subagents**:
@@ -105,7 +105,7 @@ subagent code unlock [--subagent <name>] [--all] [--target-root <path>] [--dry-r
 ```
 - `--subagent <name>`: Specific subagent to unlock (e.g., `subagent-1`)
 - `--all`: Unlock all subagents
-- `--target-root <path>`: Custom subagent root directory
+- `--target-root <path>`: Custom subagent root directory (default: `~/.subagent/vscode-agents` or `~/.subagent/vscode-insiders-agents` for code-insiders)
 - `--dry-run`: Show what would be unlocked without making changes
 
 **VS Code Insiders Support**:
@@ -165,7 +165,7 @@ subagent/
 ### Subagent Architecture
 
 Each subagent is an isolated VS Code workspace directory:
-- Provisioned in `~/.subagent/vscode-agents/subagent-N/`
+- Provisioned in `~/.subagent/vscode-agents/subagent-N/` (or `~/.subagent/vscode-insiders-agents/subagent-N/` for code-insiders)
 - Contains a `.code-workspace` file
 - Uses a `subagent.lock` file to prevent concurrent access
 - Messages exchanged in a `messages/` subdirectory

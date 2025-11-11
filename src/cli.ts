@@ -7,7 +7,7 @@ import {
   warmupSubagents,
 } from "./vscode/agentDispatch.js";
 import { provisionSubagents, unlockSubagents } from "./vscode/provision.js";
-import { DEFAULT_LOCK_NAME, DEFAULT_SUBAGENT_ROOT, DEFAULT_TEMPLATE_DIR } from "./vscode/constants.js";
+import { DEFAULT_LOCK_NAME, DEFAULT_SUBAGENT_ROOT, DEFAULT_TEMPLATE_DIR, getDefaultSubagentRoot } from "./vscode/constants.js";
 import { logger } from "./utils/logger.js";
 
 // Global error handlers
@@ -40,12 +40,13 @@ program
   .configureHelp({ sortSubcommands: true });
 
 function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
+  const defaultSubagentRoot = getDefaultSubagentRoot(vscodeCmd);
   parent
     .command("provision")
     .description("Provision subagent workspace directories")
     .option("--subagents <count>", "Number of subagent directories to provision", (value) => Number.parseInt(value, 10), 1)
     .option("--template <path>", "Path to the subagent template", DEFAULT_TEMPLATE_DIR)
-    .option("--target-root <path>", "Destination root for subagent directories", DEFAULT_SUBAGENT_ROOT)
+    .option("--target-root <path>", "Destination root for subagent directories", defaultSubagentRoot)
     .option("--lock-name <name>", "Filename that marks a subagent as locked", DEFAULT_LOCK_NAME)
     .option("--force", "Unlock and overwrite all subagent directories regardless of lock status", false)
     .option("--dry-run", "Show the planned operations without copying files", false)
@@ -151,7 +152,7 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
     .command("warmup")
     .description("Open provisioned VS Code workspaces to warm them up")
     .option("--subagents <count>", "Number of subagent workspaces to open", (value) => Number.parseInt(value, 10), 1)
-    .option("--target-root <path>", "Root directory containing subagents", DEFAULT_SUBAGENT_ROOT)
+    .option("--target-root <path>", "Root directory containing subagents", defaultSubagentRoot)
     .option("--dry-run", "Show which workspaces would be opened without opening them", false)
     .action(async (options) => {
       try {
@@ -173,13 +174,14 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
   parent
     .command("list")
     .description("List all provisioned subagents and their status")
-    .option("--target-root <path>", "Root directory containing subagents", DEFAULT_SUBAGENT_ROOT)
+    .option("--target-root <path>", "Root directory containing subagents", defaultSubagentRoot)
     .option("--json", "Output results as JSON", false)
     .action(async (options) => {
       try {
         const exitCode = await listSubagents({
           subagentRoot: options.targetRoot,
           jsonOutput: Boolean(options.json),
+          vscodeCmd,
         });
         if (exitCode !== 0) {
           process.exitCode = exitCode;
@@ -195,7 +197,7 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
     .description("Unlock subagent(s) by removing their lock files")
     .option("--subagent <name>", "Subagent name to unlock (e.g., subagent-1)")
     .option("--all", "Unlock all subagents", false)
-    .option("--target-root <path>", "Root directory containing subagents", DEFAULT_SUBAGENT_ROOT)
+    .option("--target-root <path>", "Root directory containing subagents", defaultSubagentRoot)
     .option("--lock-name <name>", "Filename that marks a subagent as locked", DEFAULT_LOCK_NAME)
     .option("--dry-run", "Show what would be unlocked without making changes", false)
     .action(async (options) => {
