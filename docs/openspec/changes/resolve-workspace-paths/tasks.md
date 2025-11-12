@@ -55,12 +55,12 @@
 
 ## Testing Checklist
 
-- [ ] Unit tests for `transformWorkspacePaths` utility
-- [ ] Integration tests for dispatch with custom templates
-- [ ] Manual test: Create template with `./lib` path, verify it resolves correctly
-- [ ] Manual test: Verify default template behavior unchanged
-- [ ] Manual test: Template with mix of relative and absolute paths
-- [ ] Verify on Windows and Unix-style paths (if applicable)
+- [x] Unit tests for `transformWorkspacePaths` utility
+- [x] Integration tests for dispatch with custom templates
+- [x] Manual test: Create template with `./lib` path, verify it resolves correctly
+- [x] Manual test: Verify default template behavior unchanged
+- [x] Manual test: Template with mix of relative and absolute paths
+- [x] Verify on Windows and Unix-style paths (if applicable)
 
 ## Dependencies
 

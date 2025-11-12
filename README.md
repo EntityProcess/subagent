@@ -1,8 +1,6 @@
 # Subagent
 
-Subagent is a CLI tool for managing workspace agents across different backends. It currently supports VS Code workspace agents with plans to add support for OpenAI Agents, Azure AI Agents, GitHub Copilot CLI and Codex CLI.
-
-This is a TypeScript port of the [Python subagent](https://github.com/christso/subagent-py) project.
+Subagent is a CLI tool for managing workspace agents across different providers. It currently supports VS Code workspace agents with plans to add support for Azure AI Agents, GitHub Copilot CLI, OpenAI Codex and Claude Code.
 
 ## Features
 
@@ -13,8 +11,6 @@ Manage isolated VS Code workspaces for parallel agent development sessions:
 - **Provision subagents**: Create a pool of isolated workspace directories
 - **Chat with agents**: Automatically claim a workspace and start a VS Code chat session
 - **Lock management**: Prevent conflicts when running multiple agents in parallel
-
-The project uses Node.js and TypeScript with npm for package management.
 
 ## Prerequisites
 
@@ -27,15 +23,15 @@ The project uses Node.js and TypeScript with npm for package management.
 ### Installation
 
 ```bash
-# Install from npm (when published)
+# Install from npm
 npm install -g subagent
 
 # Or for development (install from source)
 git clone <repo-url>
 cd subagent
-npm install
-npm run build
-npm link
+pnpm install
+pnpm build
+pnpm link --global
 ```
 
 ### Using VS Code Workspace Agents
@@ -64,6 +60,37 @@ npm link
    subagent code chat "Your query here" --workspace-template ./my-workspace.code-workspace
    ```
    This uses a custom `.code-workspace` file with your preferred settings, extensions, and folder configurations.
+   
+   **Workspace Path Resolution**: When using a custom template, the system automatically:
+   - Resolves all relative paths (including `"."`) in the template to absolute paths based on the template file's directory
+   - Inserts `{ "path": "." }` as the first folder entry (which will resolve to the subagent directory when the workspace is opened)
+   - Preserves absolute paths unchanged
+   
+   For example, if your template at `/home/user/templates/my-template.code-workspace` contains:
+   ```json
+   {
+     "folders": [
+       { "path": "./lib" },
+       { "path": "/absolute/path" }
+     ]
+   }
+   ```
+   
+   The resulting workspace file in the subagent directory will become:
+   ```json
+   {
+     "folders": [
+       { "path": "." },
+       { "path": "/home/user/templates/lib" },
+       { "path": "/absolute/path" }
+     ]
+   }
+   ```
+   
+   This ensures that:
+   - The subagent directory is always accessible (via the `"."` entry)
+   - Template folders remain accessible at their original locations
+   - You can reference shared libraries or resources from your template location
 
 ### Command Reference
 
@@ -196,7 +223,3 @@ MIT - See LICENSE file for details.
 ## Contributing
 
 This project is under active development. Contributions are welcome!
-
-## Related Projects
-
-- [subagent-py](https://github.com/christso/subagent-py) - Original Python implementation
