@@ -463,6 +463,244 @@ describe("agent dispatch", () => {
       expect(workspaceContent.settings).toEqual({ "custom.setting": true });
     });
 
+    it("should transform relative paths in workspace template to absolute paths", async () => {
+      await provisionSubagents({
+        targetRoot,
+        subagents: 1,
+        lockName: DEFAULT_LOCK_NAME,
+        force: false,
+        dryRun: false,
+      });
+
+      // Create a template directory with a lib subdirectory
+      const libDir = path.join(tmpDir, "lib");
+      await mkdir(libDir, { recursive: true });
+
+      // Create a workspace template with relative paths
+      const relativeTemplate = path.join(tmpDir, "relative.code-workspace");
+      await writeFile(
+        relativeTemplate,
+        JSON.stringify({
+          folders: [
+            { path: "./lib" },
+            { path: "../other" },
+          ],
+        })
+      );
+
+      const subagentDir = path.join(targetRoot, "subagent-1");
+      const aliveFile = path.join(subagentDir, ".alive");
+
+      const { spawn } = await import("child_process");
+      vi.mocked(spawn).mockImplementation((command: string, args?: readonly string[]) => {
+        if (args && args.includes("chat") && args.includes("create a file named .alive")) {
+          setTimeout(async () => {
+            await writeFile(aliveFile, "").catch(() => {});
+          }, 10);
+        }
+        return {
+          on: vi.fn(),
+          stdout: { on: vi.fn() },
+          stderr: { on: vi.fn() },
+        } as any;
+      });
+
+      const exitCode = await dispatchAgent({
+        userQuery: "test query",
+        workspaceTemplate: relativeTemplate,
+        subagentRoot: targetRoot,
+        dryRun: false,
+        wait: false,
+        vscodeCmd: "code",
+      });
+
+      expect(exitCode).toBe(0);
+
+      // Read the workspace file and verify paths were transformed
+      const { readFile } = await import("fs/promises");
+      const workspaceFile = path.join(subagentDir, "subagent-1.code-workspace");
+      const workspaceContent = JSON.parse(await readFile(workspaceFile, "utf8"));
+
+      // First folder should be "." (subagent directory)
+      expect(workspaceContent.folders[0].path).toBe(".");
+
+      // Second folder should be resolved to absolute path
+      expect(workspaceContent.folders[1].path).toBe(path.resolve(tmpDir, "./lib"));
+
+      // Third folder should be resolved to absolute path
+      expect(workspaceContent.folders[2].path).toBe(path.resolve(tmpDir, "../other"));
+    });
+
+    it("should preserve absolute paths in workspace template", async () => {
+      await provisionSubagents({
+        targetRoot,
+        subagents: 1,
+        lockName: DEFAULT_LOCK_NAME,
+        force: false,
+        dryRun: false,
+      });
+
+      const absolutePath = path.resolve(tmpDir, "absolute-folder");
+      const absoluteTemplate = path.join(tmpDir, "absolute.code-workspace");
+      await writeFile(
+        absoluteTemplate,
+        JSON.stringify({
+          folders: [
+            { path: absolutePath },
+            { path: "./relative" },
+          ],
+        })
+      );
+
+      const subagentDir = path.join(targetRoot, "subagent-1");
+      const aliveFile = path.join(subagentDir, ".alive");
+
+      const { spawn } = await import("child_process");
+      vi.mocked(spawn).mockImplementation((command: string, args?: readonly string[]) => {
+        if (args && args.includes("chat") && args.includes("create a file named .alive")) {
+          setTimeout(async () => {
+            await writeFile(aliveFile, "").catch(() => {});
+          }, 10);
+        }
+        return {
+          on: vi.fn(),
+          stdout: { on: vi.fn() },
+          stderr: { on: vi.fn() },
+        } as any;
+      });
+
+      const exitCode = await dispatchAgent({
+        userQuery: "test query",
+        workspaceTemplate: absoluteTemplate,
+        subagentRoot: targetRoot,
+        dryRun: false,
+        wait: false,
+        vscodeCmd: "code",
+      });
+
+      expect(exitCode).toBe(0);
+
+      // Read the workspace file and verify absolute path was preserved
+      const { readFile } = await import("fs/promises");
+      const workspaceFile = path.join(subagentDir, "subagent-1.code-workspace");
+      const workspaceContent = JSON.parse(await readFile(workspaceFile, "utf8"));
+
+      expect(workspaceContent.folders[0].path).toBe(".");
+      expect(workspaceContent.folders[1].path).toBe(absolutePath);
+      expect(workspaceContent.folders[2].path).toBe(path.resolve(tmpDir, "./relative"));
+    });
+
+    it("should insert subagent folder as first entry", async () => {
+      await provisionSubagents({
+        targetRoot,
+        subagents: 1,
+        lockName: DEFAULT_LOCK_NAME,
+        force: false,
+        dryRun: false,
+      });
+
+      const templateWithFolders = path.join(tmpDir, "multi.code-workspace");
+      await writeFile(
+        templateWithFolders,
+        JSON.stringify({
+          folders: [
+            { path: "./src" },
+            { path: "./lib" },
+          ],
+        })
+      );
+
+      const subagentDir = path.join(targetRoot, "subagent-1");
+      const aliveFile = path.join(subagentDir, ".alive");
+
+      const { spawn } = await import("child_process");
+      vi.mocked(spawn).mockImplementation((command: string, args?: readonly string[]) => {
+        if (args && args.includes("chat") && args.includes("create a file named .alive")) {
+          setTimeout(async () => {
+            await writeFile(aliveFile, "").catch(() => {});
+          }, 10);
+        }
+        return {
+          on: vi.fn(),
+          stdout: { on: vi.fn() },
+          stderr: { on: vi.fn() },
+        } as any;
+      });
+
+      const exitCode = await dispatchAgent({
+        userQuery: "test query",
+        workspaceTemplate: templateWithFolders,
+        subagentRoot: targetRoot,
+        dryRun: false,
+        wait: false,
+        vscodeCmd: "code",
+      });
+
+      expect(exitCode).toBe(0);
+
+      // Read workspace file and verify "." is first
+      const { readFile } = await import("fs/promises");
+      const workspaceFile = path.join(subagentDir, "subagent-1.code-workspace");
+      const workspaceContent = JSON.parse(await readFile(workspaceFile, "utf8"));
+
+      expect(workspaceContent.folders[0]).toEqual({ path: "." });
+      expect(workspaceContent.folders.length).toBe(3); // . + src + lib
+    });
+
+    it("should resolve '.' in template to template directory absolute path", async () => {
+      await provisionSubagents({
+        targetRoot,
+        subagents: 1,
+        lockName: DEFAULT_LOCK_NAME,
+        force: false,
+        dryRun: false,
+      });
+
+      const dotTemplate = path.join(tmpDir, "dot.code-workspace");
+      await writeFile(
+        dotTemplate,
+        JSON.stringify({
+          folders: [{ path: "." }],
+        })
+      );
+
+      const subagentDir = path.join(targetRoot, "subagent-1");
+      const aliveFile = path.join(subagentDir, ".alive");
+
+      const { spawn } = await import("child_process");
+      vi.mocked(spawn).mockImplementation((command: string, args?: readonly string[]) => {
+        if (args && args.includes("chat") && args.includes("create a file named .alive")) {
+          setTimeout(async () => {
+            await writeFile(aliveFile, "").catch(() => {});
+          }, 10);
+        }
+        return {
+          on: vi.fn(),
+          stdout: { on: vi.fn() },
+          stderr: { on: vi.fn() },
+        } as any;
+      });
+
+      const exitCode = await dispatchAgent({
+        userQuery: "test query",
+        workspaceTemplate: dotTemplate,
+        subagentRoot: targetRoot,
+        dryRun: false,
+        wait: false,
+        vscodeCmd: "code",
+      });
+
+      expect(exitCode).toBe(0);
+
+      // Read workspace file and verify "." in template was resolved to tmpDir
+      const { readFile } = await import("fs/promises");
+      const workspaceFile = path.join(subagentDir, "subagent-1.code-workspace");
+      const workspaceContent = JSON.parse(await readFile(workspaceFile, "utf8"));
+
+      expect(workspaceContent.folders[0]).toEqual({ path: "." }); // Subagent folder
+      expect(workspaceContent.folders[1].path).toBe(tmpDir); // Template's "." resolved
+    });
+
     it("should return error for nonexistent workspace template", async () => {
       await provisionSubagents({
         targetRoot,

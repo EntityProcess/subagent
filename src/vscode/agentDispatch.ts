@@ -14,6 +14,7 @@ import {
 } from "./constants.js";
 import { pathExists, readDirEntries, removeIfExists } from "../utils/fs.js";
 import { sleep } from "../utils/time.js";
+import { transformWorkspacePaths } from "../utils/workspace.js";
 
 const execAsync = promisify(exec);
 
@@ -142,8 +143,18 @@ async function copyAgentConfig(
     throw new Error(`workspace template must be a file, not a directory: ${workspaceSrc}`);
   }
 
+  // Read the workspace template content
+  const workspaceContent = await readFile(workspaceSrc, { encoding: "utf8" });
+  
+  // Get the template directory for resolving relative paths
+  const templateDir = path.dirname(workspaceSrc);
+  
+  // Transform workspace paths: resolve relative paths and add subagent folder
+  const transformedContent = transformWorkspacePaths(workspaceContent, templateDir);
+
+  // Write the transformed workspace to the destination
   const workspaceDst = path.join(subagentDir, `${path.basename(subagentDir)}.code-workspace`);
-  await copyFile(workspaceSrc, workspaceDst);
+  await writeFile(workspaceDst, transformedContent, { encoding: "utf8" });
 
   const messagesDir = path.join(subagentDir, "messages");
   await mkdir(messagesDir, { recursive: true });
