@@ -1,4 +1,5 @@
 import path from "path";
+import JSON5 from "json5";
 
 /**
  * Workspace folder configuration from VS Code workspace file
@@ -33,7 +34,8 @@ export function transformWorkspacePaths(workspaceContent: string, templateDir: s
   let workspace: WorkspaceConfig;
   
   try {
-    workspace = JSON.parse(workspaceContent) as WorkspaceConfig;
+    // Use JSON5 to parse VS Code workspace files (supports trailing commas, comments, etc.)
+    workspace = JSON5.parse(workspaceContent) as WorkspaceConfig;
   } catch (error) {
     throw new Error(`Invalid workspace JSON: ${(error as Error).message}`);
   }
