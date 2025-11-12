@@ -11,13 +11,18 @@
 - Iterate through all folders and resolve relative paths (including `"."`) to absolute using `templateDir`
 - Preserve absolute paths unchanged
 - After resolving all paths, insert `{ "path": "." }` as the first folder entry
+- Transform chat settings paths:
+  - For `chat.promptFilesLocations`, `chat.instructionsFilesLocations`, and `chat.modeFilesLocations`
+  - Resolve relative glob paths to absolute paths based on `templateDir`
+  - Preserve absolute paths unchanged
 - Return stringified JSON with proper formatting
 
 **Validation**: Unit tests covering:
 - Relative path resolution
 - Absolute path preservation
 - Subagent folder insertion
-- Edge cases (empty folders array, malformed JSON)
+- Chat settings path resolution (relative and absolute)
+- Edge cases (empty folders array, malformed JSON, missing chat settings)
 
 ### 2. Update copyAgentConfig to transform workspace paths
 
@@ -40,6 +45,8 @@
 - Test workspace template with absolute paths remain unchanged
 - Test default template behavior unchanged
 - Test template already containing `{ "path": "." }` as first entry
+- Test chat settings with relative paths get resolved
+- Test chat settings with absolute paths remain unchanged
 
 **Validation**: All new tests pass
 
@@ -60,6 +67,8 @@
 - [x] Manual test: Create template with `./lib` path, verify it resolves correctly
 - [x] Manual test: Verify default template behavior unchanged
 - [x] Manual test: Template with mix of relative and absolute paths
+- [ ] Manual test: Template with chat settings relative paths
+- [ ] Manual test: Template with chat settings absolute paths
 - [x] Verify on Windows and Unix-style paths (if applicable)
 
 ## Dependencies

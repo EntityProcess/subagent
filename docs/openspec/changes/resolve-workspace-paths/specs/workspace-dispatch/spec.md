@@ -4,7 +4,7 @@
 
 ### Requirement: Workspace Path Resolution
 
-The system SHALL transform workspace template folder paths during dispatch to ensure proper path resolution.
+The system SHALL transform workspace template folder paths and chat settings paths during dispatch to ensure proper path resolution.
 
 #### Scenario: Add subagent folder as first entry
 
@@ -87,3 +87,58 @@ The system SHALL transform workspace template folder paths during dispatch to en
   }
   ```
   Where the first `"."` is the newly inserted subagent directory entry, and the second is the resolved template directory
+
+#### Scenario: Resolve chat settings paths
+
+- **WHEN** the workspace template contains relative paths in `chat.promptFilesLocations`, `chat.instructionsFilesLocations`, or `chat.modeFilesLocations` settings
+- **THEN** the system resolves these paths to absolute paths based on the template file's directory location
+
+#### Scenario: Template with chat settings and relative paths
+
+- **GIVEN** a template at `C:/Users/User/templates/my.code-workspace` containing:
+  ```json
+  {
+    "folders": [
+      { "path": "./empty" }
+    ],
+    "settings": {
+      "chat.promptFilesLocations": {
+        "../../WTG.AI.Prompts/.github/prompts/**/*.prompt.md": true,
+        "../../WTG.AI.Prompts/plugins/base/prompts/**/*.prompt.md": true
+      },
+      "chat.instructionsFilesLocations": {
+        "../../WTG.AI.Prompts/plugins/base/instructions/**/*.instructions.md": true
+      },
+      "chat.modeFilesLocations": {
+        "../../WTG.AI.Prompts/plugins/base/chatmodes/**/*.chatmode.md": true
+      }
+    }
+  }
+  ```
+- **WHEN** the system copies this template
+- **THEN** the copied workspace contains:
+  ```json
+  {
+    "folders": [
+      { "path": "." },
+      { "path": "C:/Users/User/templates/empty" }
+    ],
+    "settings": {
+      "chat.promptFilesLocations": {
+        "C:/Users/WTG.AI.Prompts/.github/prompts/**/*.prompt.md": true,
+        "C:/Users/WTG.AI.Prompts/plugins/base/prompts/**/*.prompt.md": true
+      },
+      "chat.instructionsFilesLocations": {
+        "C:/Users/WTG.AI.Prompts/plugins/base/instructions/**/*.instructions.md": true
+      },
+      "chat.modeFilesLocations": {
+        "C:/Users/WTG.AI.Prompts/plugins/base/chatmodes/**/*.chatmode.md": true
+      }
+    }
+  }
+  ```
+
+#### Scenario: Preserve absolute paths in chat settings
+
+- **WHEN** the workspace template contains absolute paths in chat settings (e.g., `"C:/Projects/prompts/**/*.prompt.md"`)
+- **THEN** the system preserves these paths without modification
