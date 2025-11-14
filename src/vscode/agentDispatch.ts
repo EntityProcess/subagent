@@ -191,8 +191,10 @@ async function removeSubagentLock(subagentDir: string): Promise<void> {
   await removeIfExists(lockFile);
 }
 
-async function waitForResponseOutput(responseFileFinal: string, pollInterval = 1000): Promise<boolean> {
-  console.error(`waiting for agent to finish: ${responseFileFinal}`);
+async function waitForResponseOutput(responseFileFinal: string, pollInterval = 1000, silent = false): Promise<boolean> {
+  if (!silent) {
+    console.error(`waiting for agent to finish: ${responseFileFinal}`);
+  }
 
   try {
     while (!(await pathExists(responseFileFinal))) {
@@ -210,12 +212,16 @@ async function waitForResponseOutput(responseFileFinal: string, pollInterval = 1
   while (attempts < maxAttempts) {
     try {
       const content = await readFile(responseFileFinal, { encoding: "utf8" });
-      process.stdout.write(`${content}\n`);
+      if (!silent) {
+        process.stdout.write(`${content}\n`);
+      }
       return true;
     } catch (error) {
       attempts += 1;
       if ((error as NodeJS.ErrnoException).code !== "EBUSY" || attempts >= maxAttempts) {
-        console.error(`error: failed to read agent response: ${(error as Error).message}`);
+        if (!silent) {
+          console.error(`error: failed to read agent response: ${(error as Error).message}`);
+        }
         return false;
       }
       await sleep(pollInterval);
@@ -349,6 +355,7 @@ export interface DispatchOptions {
   wait?: boolean;
   vscodeCmd?: string;
   subagentRoot?: string;
+  silent?: boolean;
 }
 
 export async function dispatchAgent(options: DispatchOptions): Promise<number> {
@@ -361,6 +368,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
     wait = false,
     vscodeCmd = "code",
     subagentRoot,
+    silent = false,
   } = options;
 
   try {
@@ -380,13 +388,17 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
     const subagentRootPath = subagentRoot ?? getSubagentRoot(vscodeCmd);
     const subagentDir = await findUnlockedSubagent(subagentRootPath);
     if (!subagentDir) {
-      console.error(
-        "error: No unlocked subagents available. Provision additional subagents with:\n  subagent code provision --subagents <desired_total>",
-      );
+      if (!silent) {
+        console.error(
+          "error: No unlocked subagents available. Provision additional subagents with:\n  subagent code provision --subagents <desired_total>",
+        );
+      }
       return 1;
     }
 
-    console.error(`info: Acquiring subagent: ${path.basename(subagentDir)}`);
+    if (!silent) {
+      console.error(`info: Acquiring subagent: ${path.basename(subagentDir)}`);
+    }
 
     const chatId = Math.random().toString(16).slice(2, 10);
     const preparationResult = await prepareSubagentDirectory(subagentDir, resolvedPrompt, chatId, workspaceTemplate, dryRun);
@@ -425,15 +437,17 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
           temp_file: responseFileTmp,
         })}\n`,
       );
-      console.error(
-        `\nAgent dispatched. Response will be written to:\n  ${responseFileFinal}\nMonitor: check if ${path.basename(
-          responseFileTmp,
-        )} has been renamed to ${path.basename(responseFileFinal)}\n`,
-      );
+      if (!silent) {
+        console.error(
+          `\nAgent dispatched. Response will be written to:\n  ${responseFileFinal}\nMonitor: check if ${path.basename(
+            responseFileTmp,
+          )} has been renamed to ${path.basename(responseFileFinal)}\n`,
+        );
+      }
       return 0;
     }
 
-    const received = await waitForResponseOutput(responseFileFinal);
+    const received = await waitForResponseOutput(responseFileFinal, 1000, silent);
     if (!received) {
       return 1;
     }
@@ -464,6 +478,7 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
     wait = true,
     vscodeCmd = "code",
     subagentRoot,
+    silent = false,
   } = options;
 
   try {
@@ -562,7 +577,7 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
       };
     }
 
-    const received = await waitForResponseOutput(responseFileFinal);
+    const received = await waitForResponseOutput(responseFileFinal, 1000, silent);
     if (!received) {
       return {
         exitCode: 1,
