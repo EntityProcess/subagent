@@ -9,6 +9,13 @@ import {
 import { provisionSubagents, unlockSubagents } from "./vscode/provision.js";
 import { DEFAULT_LOCK_NAME, DEFAULT_SUBAGENT_ROOT, DEFAULT_TEMPLATE_DIR, getDefaultSubagentRoot } from "./vscode/constants.js";
 import { logger } from "./utils/logger.js";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf8"));
 
 // Global error handlers
 process.on("uncaughtException", (err) => {
@@ -37,6 +44,7 @@ const program = new Command();
 program
   .name("subagent")
   .description("Manage workspace agents across different backends")
+  .version(packageJson.version)
   .configureHelp({ sortSubcommands: true });
 
 function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
