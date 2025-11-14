@@ -128,6 +128,7 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
     })
     .option("--dry-run", "Print what would be done without making changes", false)
     .option("-w, --wait", "Wait for response and print to stdout (sync mode)", false)
+    .option("--silent", "Suppress informational output", false)
     .action(async (query: string, options) => {
       try {
         const exitCode = await dispatchAgent({
@@ -137,6 +138,7 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
           extraAttachments: options.attachment as string[] | undefined,
           dryRun: Boolean(options.dryRun),
           wait: Boolean(options.wait),
+          silent: Boolean(options.silent),
           vscodeCmd,
         });
         if (exitCode !== 0) {
