@@ -7,7 +7,7 @@ import {
   warmupSubagents,
 } from "./vscode/agentDispatch.js";
 import { provisionSubagents, unlockSubagents } from "./vscode/provision.js";
-import { DEFAULT_LOCK_NAME, DEFAULT_SUBAGENT_ROOT, DEFAULT_TEMPLATE_DIR, getDefaultSubagentRoot } from "./vscode/constants.js";
+import { DEFAULT_LOCK_NAME, getDefaultSubagentRoot } from "./vscode/constants.js";
 import { logger } from "./utils/logger.js";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";

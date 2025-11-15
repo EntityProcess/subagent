@@ -7,7 +7,6 @@ import {
   DEFAULT_ALIVE_FILENAME,
   DEFAULT_LOCK_NAME,
   DEFAULT_SUBAGENT_ROOT,
-  DEFAULT_TEMPLATE_DIR,
   DEFAULT_WAKEUP_FILENAME,
   DEFAULT_WORKSPACE_FILENAME,
   getDefaultSubagentRoot,
@@ -17,6 +16,31 @@ import { sleep } from "../utils/time.js";
 import { transformWorkspacePaths } from "../utils/workspace.js";
 
 const execAsync = promisify(exec);
+
+/**
+ * Default workspace template content
+ */
+const DEFAULT_WORKSPACE_TEMPLATE = {
+  folders: [
+    {
+      path: ".",
+    },
+  ],
+  settings: {
+    "chat.modeFilesLocations": {
+      "**/*.chatmode.md": true,
+    },
+  },
+};
+
+/**
+ * Default wakeup chatmode content
+ */
+const DEFAULT_WAKEUP_CONTENT = `---
+description: 'Wake-up Signal'
+tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo']
+model: GPT-4.1 (copilot)
+---`;
 
 export function getSubagentRoot(vscodeCmd: string = "code"): string {
   return getDefaultSubagentRoot(vscodeCmd);
@@ -99,11 +123,8 @@ async function ensureWorkspaceFocused(
   const aliveFile = path.join(subagentDir, DEFAULT_ALIVE_FILENAME);
   await removeIfExists(aliveFile);
 
-  const wakeupSrc = path.join(DEFAULT_TEMPLATE_DIR, DEFAULT_WAKEUP_FILENAME);
   const wakeupDst = path.join(subagentDir, DEFAULT_WAKEUP_FILENAME);
-  if (await pathExists(wakeupSrc)) {
-    await copyFile(wakeupSrc, wakeupDst);
-  }
+  await writeFile(wakeupDst, DEFAULT_WAKEUP_CONTENT, "utf8");
 
   spawn(vscodeCmd, [workspacePath], { windowsHide: true, shell: true, detached: false });
   await sleep(100);
@@ -128,33 +149,37 @@ async function copyAgentConfig(
   subagentDir: string,
   workspaceTemplate?: string,
 ): Promise<{ workspace: string; messagesDir: string }> {
-  // Determine workspace source - use custom if provided, otherwise default
-  const workspaceSrc = workspaceTemplate
-    ? path.resolve(workspaceTemplate)
-    : path.join(DEFAULT_TEMPLATE_DIR, DEFAULT_WORKSPACE_FILENAME);
+  let workspaceContent: unknown;
 
-  // Validate the workspace template exists
-  if (!(await pathExists(workspaceSrc))) {
-    throw new Error(`workspace template not found: ${workspaceSrc}`);
+  if (workspaceTemplate) {
+    // Use custom workspace template file if provided
+    const workspaceSrc = path.resolve(workspaceTemplate);
+
+    // Validate the workspace template exists
+    if (!(await pathExists(workspaceSrc))) {
+      throw new Error(`workspace template not found: ${workspaceSrc}`);
+    }
+
+    const stats = await stat(workspaceSrc);
+    if (!stats.isFile()) {
+      throw new Error(`workspace template must be a file, not a directory: ${workspaceSrc}`);
+    }
+
+    // Read and parse custom template
+    const templateText = await readFile(workspaceSrc, "utf8");
+    workspaceContent = JSON.parse(templateText);
+  } else {
+    // Use default template
+    workspaceContent = DEFAULT_WORKSPACE_TEMPLATE;
   }
 
-  const stats = await stat(workspaceSrc);
-  if (!stats.isFile()) {
-    throw new Error(`workspace template must be a file, not a directory: ${workspaceSrc}`);
-  }
-
-  // Read the workspace template content
-  const workspaceContent = await readFile(workspaceSrc, { encoding: "utf8" });
-  
-  // Get the template directory for resolving relative paths
-  const templateDir = path.dirname(workspaceSrc);
-  
-  // Transform workspace paths: resolve relative paths and add subagent folder
-  const transformedContent = transformWorkspacePaths(workspaceContent, templateDir);
-
-  // Write the transformed workspace to the destination
-  const workspaceDst = path.join(subagentDir, `${path.basename(subagentDir)}.code-workspace`);
-  await writeFile(workspaceDst, transformedContent, { encoding: "utf8" });
+  // Write workspace file
+  const workspaceName = `${path.basename(subagentDir)}.code-workspace`;
+  const workspaceDst = path.join(subagentDir, workspaceName);
+  const templateDir = workspaceTemplate ? path.dirname(path.resolve(workspaceTemplate)) : subagentDir;
+  const workspaceJson = JSON.stringify(workspaceContent, null, 2);
+  const transformedContent = transformWorkspacePaths(workspaceJson, templateDir);
+  await writeFile(workspaceDst, transformedContent, "utf8");
 
   const messagesDir = path.join(subagentDir, "messages");
   await mkdir(messagesDir, { recursive: true });
