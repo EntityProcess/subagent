@@ -92,6 +92,16 @@ If the template contains `{ "path": "." }`, it should be resolved to the templat
 This change affects:
 - **workspace-dispatch** specification: Add requirements for workspace path resolution
 
+## Why
+
+Workspace templates often contain relative paths that need to resolve correctly when copied to subagent directories. Without path resolution, relative paths in folders and chat settings break, leading to incorrect workspace behavior and missing prompt/instruction files. This change ensures templates work reliably across different directory structures by resolving all paths to absolute paths based on the template's location.
+
+## What Changes
+
+- Add "### Requirement: Workspace Path Resolution" to workspace-dispatch spec
+- Document path resolution behavior for folders and chat settings
+- Specify that subagent directory is always added as first folder entry
+
 ## Implementation Approach
 
 Modify the `copyAgentConfig` function in `src/vscode/agentDispatch.ts` to:
