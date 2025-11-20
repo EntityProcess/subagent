@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define requirements for dispatching multiple independent queries to a single subagent workspace in parallel, using VS Code's `#runSubagent` tool for isolated execution contexts.
+Define requirements for dispatching multiple independent queries to a single subagent workspace for sequential processing, using an orchestrator file to orchestrate execution and manage workspace unlocking. This optimizes costs by reusing a single VS Code instance.
 
 ## ADDED Requirements
 
@@ -53,27 +53,38 @@ The system SHALL create one request file per query with a unique naming pattern 
 
 ### Requirement: Batch Attachment to Chat
 
-The system SHALL attach all batch request files to a single VS Code chat session.
+The system SHALL attach the orchestrator file and any extra attachments to the VS Code chat session.
 
-#### Scenario: Attach all request files
+#### Scenario: Attach orchestrator file
 
-- **GIVEN** 3 request files generated for a batch dispatch
+- **GIVEN** a batch dispatch with orchestrator file and 2 extra attachments
 - **WHEN** the system launches VS Code with chat
-- **THEN** all 3 request files appear in the chat attachments list
+- **THEN** the orchestrator file and 2 extra attachments appear in the chat attachments list
+- **AND** individual request files are NOT attached (orchestrator references them)
 
-### Requirement: Batch Processing Instruction
+### Requirement: Batch Orchestrator File
 
-The system SHALL send a batch processing instruction that delegates to VS Code's `#runSubagent` tool instead of referencing specific file names.
+The system SHALL create an orchestrator file that orchestrates sequential processing of all queries and handles workspace unlocking.
 
-#### Scenario: Batch instruction content
+#### Scenario: Orchestrator file creation
 
-- **WHEN** the system creates the batch chat prompt
-- **THEN** the prompt message is: "Call the #runSubagent tool (not the subagent CLI) for each attached req.md file to process them in isolated contexts"
+- **GIVEN** a batch dispatch with 3 queries at timestamp "20251120143000"
+- **WHEN** the system generates batch files
+- **THEN** an orchestrator file `20251120143000_orchestrator.md` is created
 
-#### Scenario: No specific file references
+#### Scenario: Orchestrator file content
 
-- **WHEN** the system creates the batch chat prompt
-- **THEN** the prompt does NOT contain references like "follow instructions in {reqFile}" or specific request file names
+- **WHEN** the orchestrator file is created
+- **THEN** it contains:
+  - Sequential `#runSubagent` calls for each request file
+  - PowerShell verification script to check all response files exist
+  - Unlock command that runs only after verification succeeds
+
+#### Scenario: Individual request files have no unlock
+
+- **WHEN** individual request files are created
+- **THEN** they contain ONLY the task and response file write instructions
+- **AND** they do NOT contain unlock commands
 
 ### Requirement: Batch Result Structure
 

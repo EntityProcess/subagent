@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-The batch dispatch feature extends the existing single-query dispatch mechanism to support multiple queries in a single workspace session. The key architectural decision is to **delegate parallelization and isolation to VS Code's `#runSubagent` tool** rather than implementing custom orchestration logic.
+The batch dispatch feature extends the existing single-query dispatch mechanism to support multiple queries in a single workspace session for cost optimization. The key architectural decision is to **use an orchestrator file that orchestrates sequential processing** via VS Code's `#runSubagent` tool, with the orchestrator responsible for verifying completion and unlocking the workspace.
 
 ## Component Design
 
@@ -42,31 +42,45 @@ export async function dispatchBatchAgent(
 - **index**: Zero-based sequential index (0, 1, 2, ...)
 - Ensures ordering and uniqueness within the same batch
 
+**Individual request files contain ONLY task and response file instructions (NO unlock commands)**
+
 **Example**:
 ```
 messages/
-  20251120143000_0_req.md   # "analyze code"
-  20251120143000_1_req.md   # "run tests"
-  20251120143000_2_req.md   # "check types"
+  20251120143000_0_req.md   # "analyze code" + write to *_0_res.md
+  20251120143000_1_req.md   # "run tests" + write to *_1_res.md
+  20251120143000_2_req.md   # "check types" + write to *_2_res.md
+  20251120143000_orchestrator.md  # Orchestrates all + unlocks
 ```
 
-### Chat Instruction
+### Orchestrator File
 
 **Single-Query Instruction** (current):
 ```
 Follow instructions in {timestamp}_req.md
 ```
 
-**Batch Instruction** (new):
+**Batch Orchestrator** (new): `{timestamp}_orchestrator.md`
+```markdown
+Process these queries sequentially in isolated contexts using #runSubagent (not subagent CLI):
+
+1. #runSubagent @{timestamp}_0_req.md
+2. #runSubagent @{timestamp}_1_req.md
+3. #runSubagent @{timestamp}_2_req.md
+
+After ALL queries complete, verify all responses exist and unlock:
+
+```powershell
+$responses = @("{timestamp}_0_res.md", "{timestamp}_1_res.md", "{timestamp}_2_res.md")
+$allExist = $responses | ForEach-Object { Test-Path "messages/$_" } | Where-Object { $_ -eq $false } | Measure-Object | Select-Object -ExpandProperty Count
+if ($allExist -eq 0) { subagent {vscodeCmd} unlock --subagent {subagentName} }
 ```
-Call the #runSubagent tool (not the subagent CLI) for each attached req.md file to process them in isolated contexts
 ```
 
-**Key Differences**:
-- No specific file name references (VS Code sees all attachments)
-- Explicit delegation to `#runSubagent` tool
-- Clarifies isolation requirement ("isolated contexts")
-- Distinguishes from `subagent` CLI (prevents confusion)
+**Key Points**:
+- Coordinator orchestrates sequential processing
+- Verifies all responses before unlocking
+- Individual request files have no unlock logic
 
 ## Workflow Comparison
 
@@ -91,25 +105,26 @@ Call the #runSubagent tool (not the subagent CLI) for each attached req.md file 
 2. Create lock file
 3. Copy workspace config
 4. Create req_0.md, req_1.md, req_2.md, ...
-5. Launch VS Code with chat
-6. Attach ALL req_*.md files
-7. Send: "Call #runSubagent for each attached req.md file"
-8. Wait for batch completion (TBD: how to signal)
-9. Remove lock
+5. Create orchestrator.md
+6. Launch VS Code with chat
+7. Attach orchestrator + extra attachments
+8. Send: "Follow the batch processing instructions in the orchestrator file"
+9. Wait for batch completion (orchestrator handles unlock)
 ```
 
 ## Response Handling Strategy
 
-### Approach: Individual Response Files
+### Approach: Individual Response Files + Orchestrator
 
 Each query generates its own response file pair:
 - `{timestamp}_{index}_res.tmp.md` (temporary, being written)
 - `{timestamp}_{index}_res.md` (final, complete)
 
-The VS Code agent (via `#runSubagent`) is responsible for:
-1. Processing each attached `*_req.md` file
-2. Writing results to corresponding `*_res.tmp.md` files
-3. Renaming each `.tmp.md` to `.md` when complete
+The VS Code agent processes the orchestrator file which:
+1. Calls `#runSubagent` for each `*_req.md` file sequentially
+2. Each subagent writes to its corresponding `*_res.tmp.md` → `*_res.md`
+3. Orchestrator verifies all `*_res.md` files exist
+4. Orchestrator unlocks workspace when all complete
 
 ### Wait Behavior
 
@@ -174,8 +189,9 @@ const allResponsesComplete = responseFiles.every(file =>
 
 ### Assumptions
 
-- VS Code's `#runSubagent` tool is available and supports multiple invocations
-- VS Code agent can understand the batch instruction format
+- VS Code's `#runSubagent` tool processes requests sequentially
+- VS Code agent can execute PowerShell commands in orchestrator
+- Orchestrator can verify file existence before unlocking
 - Single workspace lock is sufficient (no query-level locking needed)
 
 ## Future Enhancements (Out of Scope)
