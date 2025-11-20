@@ -92,6 +92,24 @@ pnpm link --global
    - Template folders remain accessible at their original locations
    - You can reference shared libraries or resources from your template location
 
+### Programmatic batch dispatch (Node.js)
+
+Use the programmatic API to send multiple queries to the same subagent workspace:
+
+```ts
+import { dispatchBatchAgent } from "subagent";
+
+const result = await dispatchBatchAgent({
+  userQueries: ["summarize the repo", "list TODOs", "suggest tests"],
+  wait: true,
+});
+
+console.log(result.requestFiles);   // req files in messages/
+console.log(result.responseFiles);  // res files when wait is true
+```
+
+Each query produces `{timestamp}_{index}_req.md` and `{timestamp}_{index}_res.md` files inside the selected subagent's `messages/` directory. The batch chat instructs VS Code to call `#runSubagent` for every request file so each query runs in its own context.
+
 ### Command Reference
 
 **Provision subagents**:

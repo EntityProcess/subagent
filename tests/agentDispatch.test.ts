@@ -4,6 +4,7 @@ import os from "os";
 import path from "path";
 import {
   dispatchAgent,
+  dispatchBatchAgent,
   dispatchAgentSession,
   findUnlockedSubagent,
   listSubagents,
@@ -306,6 +307,188 @@ describe("agent dispatch", () => {
       const files = await import("fs/promises").then((fs) => fs.readdir(subagentDir));
       const chatmodeFiles = files.filter((f) => f.endsWith(".chatmode.md"));
       expect(chatmodeFiles.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("dispatchBatchAgent", () => {
+    it("returns an error for an empty query array", async () => {
+      const result = await dispatchBatchAgent({
+        userQueries: [],
+        subagentRoot: targetRoot,
+        vscodeCmd: "code",
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.error).toBe("At least one query is required for batch dispatch");
+      expect(result.queryCount).toBe(0);
+      expect(result.requestFiles).toEqual([]);
+    });
+
+    it("supports a single query batch", async () => {
+      await provisionSubagents({
+        templateDir,
+        targetRoot,
+        subagents: 1,
+        lockName: DEFAULT_LOCK_NAME,
+        force: false,
+        dryRun: false,
+      });
+
+      const subagentDir = path.join(targetRoot, "subagent-1");
+      const aliveFile = path.join(subagentDir, ".alive");
+      const messagesDir = path.join(subagentDir, "messages");
+
+      const { spawn } = await import("child_process");
+      vi.mocked(spawn).mockImplementation((command: string, args?: readonly string[]) => {
+        if (args && args.includes("chat") && args.includes("create a file named .alive")) {
+          setTimeout(async () => {
+            await writeFile(aliveFile, "").catch(() => {});
+          }, 10);
+        }
+        return {
+          on: vi.fn(),
+          stdout: { on: vi.fn() },
+          stderr: { on: vi.fn() },
+        } as any;
+      });
+
+      const result = await dispatchBatchAgent({
+        userQueries: ["only query"],
+        subagentRoot: targetRoot,
+        wait: false,
+        vscodeCmd: "code",
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.queryCount).toBe(1);
+      expect(result.requestFiles).toHaveLength(1);
+      expect(result.responseFiles).toBeUndefined();
+
+      const requestFile = result.requestFiles[0];
+      expect(path.basename(requestFile)).toMatch(/^[0-9]{14}_0_req\.md$/);
+      expect(await pathExists(requestFile)).toBe(true);
+
+      const timestamp = path.basename(requestFile).replace("_0_req.md", "");
+      const orchestratorFile = path.join(messagesDir, `${timestamp}_orchestrator.md`);
+      expect(await pathExists(orchestratorFile)).toBe(true);
+    });
+
+    it("creates request files for multiple queries", async () => {
+      await provisionSubagents({
+        templateDir,
+        targetRoot,
+        subagents: 1,
+        lockName: DEFAULT_LOCK_NAME,
+        force: false,
+        dryRun: false,
+      });
+
+      const subagentDir = path.join(targetRoot, "subagent-1");
+      const aliveFile = path.join(subagentDir, ".alive");
+      const messagesDir = path.join(subagentDir, "messages");
+
+      const { spawn } = await import("child_process");
+      vi.mocked(spawn).mockImplementation((command: string, args?: readonly string[]) => {
+        if (args && args.includes("chat") && args.includes("create a file named .alive")) {
+          setTimeout(async () => {
+            await writeFile(aliveFile, "").catch(() => {});
+          }, 10);
+        }
+        return {
+          on: vi.fn(),
+          stdout: { on: vi.fn() },
+          stderr: { on: vi.fn() },
+        } as any;
+      });
+
+      const result = await dispatchBatchAgent({
+        userQueries: ["first query", "second query"],
+        promptFile,
+        subagentRoot: targetRoot,
+        wait: false,
+        vscodeCmd: "code",
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.queryCount).toBe(2);
+      expect(result.requestFiles).toHaveLength(2);
+      expect(result.responseFiles).toBeUndefined();
+
+      const [firstRequest, secondRequest] = result.requestFiles;
+      expect(path.basename(firstRequest)).toMatch(/^[0-9]{14}_0_req\.md$/);
+      expect(path.basename(secondRequest)).toMatch(/^[0-9]{14}_1_req\.md$/);
+
+      expect(await pathExists(firstRequest)).toBe(true);
+      expect(await pathExists(secondRequest)).toBe(true);
+
+      const timestamp = path.basename(firstRequest).replace("_0_req.md", "");
+      const orchestratorFile = path.join(messagesDir, `${timestamp}_orchestrator.md`);
+      expect(await pathExists(orchestratorFile)).toBe(true);
+    });
+
+    it("waits for all responses when wait is true", async () => {
+      await provisionSubagents({
+        templateDir,
+        targetRoot,
+        subagents: 1,
+        lockName: DEFAULT_LOCK_NAME,
+        force: false,
+        dryRun: false,
+      });
+
+      const userQueries = Array.from({ length: 5 }, (_, index) => `query ${index + 1}`);
+      const subagentDir = path.join(targetRoot, "subagent-1");
+      const aliveFile = path.join(subagentDir, ".alive");
+      const messagesDir = path.join(subagentDir, "messages");
+
+      const { spawn } = await import("child_process");
+      vi.mocked(spawn).mockImplementation((command: string, args?: readonly string[]) => {
+        if (args && args.includes("chat") && args.includes("create a file named .alive")) {
+          setTimeout(async () => {
+            await writeFile(aliveFile, "").catch(() => {});
+          }, 10);
+        }
+
+        const orchestratorArg = args?.find(
+          (arg) => typeof arg === "string" && arg.includes("_orchestrator.md"),
+        ) as string | undefined;
+
+        if (orchestratorArg) {
+          const baseName = path.basename(orchestratorArg).replace("_orchestrator.md", "");
+          for (let index = 0; index < userQueries.length; index += 1) {
+            const responseFile = path.join(messagesDir, `${baseName}_${index}_res.md`);
+            writeFile(responseFile, `response ${index + 1}`).catch(() => {});
+          }
+        }
+
+        return {
+          on: vi.fn(),
+          stdout: { on: vi.fn() },
+          stderr: { on: vi.fn() },
+        } as any;
+      });
+
+      const result = await dispatchBatchAgent({
+        userQueries,
+        subagentRoot: targetRoot,
+        wait: true,
+        vscodeCmd: "code",
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.queryCount).toBe(userQueries.length);
+      expect(result.subagentName).toBe("subagent-1");
+      expect(result.responseFiles).toHaveLength(userQueries.length);
+
+      const requestTimestamp = path.basename(result.requestFiles[0]).replace("_0_req.md", "");
+      const expectedResponses = userQueries.map((_, index) =>
+        path.join(messagesDir, `${requestTimestamp}_${index}_res.md`),
+      );
+
+      expect(result.responseFiles).toEqual(expectedResponses);
+      for (const responseFile of expectedResponses) {
+        expect(await pathExists(responseFile)).toBe(true);
+      }
     });
   });
 
