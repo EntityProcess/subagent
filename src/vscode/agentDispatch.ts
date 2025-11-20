@@ -301,9 +301,9 @@ function createRequestPrompt(
   subagentName: string,
   vscodeCmd: string,
 ): string {
-  const escapedUserQuery = userQuery.replace(/`/g, '\\`');
   return `[[ ## task ## ]]
-${escapedUserQuery}
+
+${userQuery}
 
 [[ ## system_instructions ## ]]
 

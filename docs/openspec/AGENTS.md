@@ -71,5 +71,3 @@ Defines requirements for provisioning subagent workspace directories, including:
 1. **Creating Changes**: Scaffold proposal, design, tasks, and spec deltas
 2. **Implementing Changes**: Work through tasks, update code, test
 3. **Archiving Changes**: Move to archive after deployment, update specs
-
-For detailed workflow documentation, refer to the OpenSpec AGENTS.md from the agentevo repository or see the inline comments in this file.
