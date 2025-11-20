@@ -7,8 +7,6 @@ import {
   DEFAULT_ALIVE_FILENAME,
   DEFAULT_LOCK_NAME,
   DEFAULT_SUBAGENT_ROOT,
-  DEFAULT_WAKEUP_FILENAME,
-  DEFAULT_WORKSPACE_FILENAME,
   getDefaultSubagentRoot,
 } from "./constants.js";
 import { pathExists, readDirEntries, removeIfExists } from "../utils/fs.js";
@@ -29,22 +27,26 @@ const DEFAULT_WORKSPACE_TEMPLATE = {
     {
       path: ".",
     },
-  ],
-  settings: {
-    "chat.modeFilesLocations": {
-      "**/*.chatmode.md": true,
-    },
-  },
+  ]
 };
 
 /**
- * Default wakeup chatmode content
+ * Default wakeup agent content
  */
 const DEFAULT_WAKEUP_CONTENT = `---
 description: 'Wake-up Signal'
 tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo']
 model: GPT-4.1 (copilot)
 ---`;
+
+/**
+ * Default subagent agent content
+ */
+const DEFAULT_SUBAGENT_CONTENT = `---
+description: 'Subagent'
+tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo', 'todos', 'runSubagent', 'runTests']
+---
+`;
 
 export function getSubagentRoot(vscodeCmd: string = "code"): string {
   return getDefaultSubagentRoot(vscodeCmd);
@@ -145,8 +147,12 @@ async function ensureWorkspaceFocused(
   const aliveFile = path.join(subagentDir, DEFAULT_ALIVE_FILENAME);
   await removeIfExists(aliveFile);
 
-  const wakeupDst = path.join(subagentDir, DEFAULT_WAKEUP_FILENAME);
+  const githubAgentsDir = path.join(subagentDir, ".github", "agents");
+  await mkdir(githubAgentsDir, { recursive: true });
+  const wakeupDst = path.join(githubAgentsDir, "wakeup.md");
+  const subagentDst = path.join(githubAgentsDir, "subagent.md");
   await writeFile(wakeupDst, DEFAULT_WAKEUP_CONTENT, "utf8");
+  await writeFile(subagentDst, DEFAULT_SUBAGENT_CONTENT, "utf8");
 
   spawn(vscodeCmd, [workspacePath], { windowsHide: true, shell: true, detached: false });
   await sleep(100);
@@ -221,12 +227,16 @@ async function createSubagentLock(subagentDir: string): Promise<string> {
     );
   }
 
-  const chatmodeFiles = await readdir(subagentDir);
-  await Promise.all(
-    chatmodeFiles
-      .filter((file) => file.endsWith(".chatmode.md"))
-      .map((file) => removeIfExists(path.join(subagentDir, file))),
-  );
+  const githubAgentsDir = path.join(subagentDir, ".github", "agents");
+  if (await pathExists(githubAgentsDir)) {
+    const agentFiles = await readdir(githubAgentsDir);
+    const preservedFiles = new Set(["wakeup.md", "subagent.md"]);
+    await Promise.all(
+      agentFiles
+        .filter((file) => file.endsWith(".md") && !preservedFiles.has(file))
+        .map((file) => removeIfExists(path.join(githubAgentsDir, file))),
+    );
+  }
 
   const lockFile = path.join(subagentDir, DEFAULT_LOCK_NAME);
   await writeFile(lockFile, "", { encoding: "utf8" });
@@ -360,11 +370,13 @@ async function prepareSubagentDirectory(
   }
 
   if (promptFile) {
-    const chatmodeFile = path.join(subagentDir, `${chatId}.chatmode.md`);
+    const githubAgentsDir = path.join(subagentDir, ".github", "agents");
+    await mkdir(githubAgentsDir, { recursive: true });
+    const agentFile = path.join(githubAgentsDir, `${chatId}.md`);
     try {
-      await copyFile(promptFile, chatmodeFile);
+      await copyFile(promptFile, agentFile);
     } catch (error) {
-      console.error(`error: Failed to copy prompt file to chatmode: ${(error as Error).message}`);
+      console.error(`error: Failed to copy prompt file to agent mode: ${(error as Error).message}`);
       return 1;
     }
   }

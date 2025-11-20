@@ -4,7 +4,7 @@ import os from "os";
 import path from "path";
 import { getAllSubagentWorkspaces, warmupSubagents } from "../src/vscode/agentDispatch.js";
 import { provisionSubagents } from "../src/vscode/provision.js";
-import { DEFAULT_LOCK_NAME, DEFAULT_WORKSPACE_FILENAME } from "../src/vscode/constants.js";
+import { DEFAULT_LOCK_NAME } from "../src/vscode/constants.js";
 import { pathExists } from "../src/utils/fs.js";
 
 // Mock child_process spawn
@@ -19,18 +19,12 @@ vi.mock("child_process", () => ({
 
 describe("warmup", () => {
   let tmpDir: string;
-  let templateDir: string;
   let targetRoot: string;
 
   beforeEach(async () => {
     // Create temporary directory for tests
     tmpDir = path.join(os.tmpdir(), `subagent-test-${Date.now()}-${Math.random().toString(36).substring(7)}`);
     await mkdir(tmpDir, { recursive: true });
-
-    // Create template directory
-    templateDir = path.join(tmpDir, "template");
-    await mkdir(templateDir, { recursive: true });
-    await writeFile(path.join(templateDir, DEFAULT_WORKSPACE_FILENAME), "{}");
 
     // Create target root directory
     targetRoot = path.join(tmpDir, "agents");
@@ -61,7 +55,6 @@ describe("warmup", () => {
     it("should return workspace files for provisioned subagents", async () => {
       // Provision 3 subagents
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 3,
         lockName: DEFAULT_LOCK_NAME,
@@ -80,7 +73,6 @@ describe("warmup", () => {
     it("should skip subagent directories missing workspace file", async () => {
       // Provision properly first
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 2,
         lockName: DEFAULT_LOCK_NAME,
@@ -116,7 +108,6 @@ describe("warmup", () => {
     it("should not spawn processes during dry run", async () => {
       // Provision 2 subagents
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 2,
         lockName: DEFAULT_LOCK_NAME,
@@ -140,7 +131,6 @@ describe("warmup", () => {
     it("should open workspaces when not dry run", async () => {
       // Provision 2 subagents
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 2,
         lockName: DEFAULT_LOCK_NAME,
@@ -164,7 +154,6 @@ describe("warmup", () => {
     it("should respect count limit", async () => {
       // Provision 5 subagents
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 5,
         lockName: DEFAULT_LOCK_NAME,
@@ -189,7 +178,6 @@ describe("warmup", () => {
     it("should default to opening one workspace", async () => {
       // Provision 3 subagents
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 3,
         lockName: DEFAULT_LOCK_NAME,
@@ -213,7 +201,6 @@ describe("warmup", () => {
     it("should use specified vscode command", async () => {
       // Provision 1 subagent
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 1,
         lockName: DEFAULT_LOCK_NAME,

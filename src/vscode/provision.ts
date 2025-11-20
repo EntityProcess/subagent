@@ -3,8 +3,6 @@ import path from "path";
 
 import {
   DEFAULT_LOCK_NAME,
-  DEFAULT_WORKSPACE_FILENAME,
-  DEFAULT_WAKEUP_FILENAME,
 } from "./constants.js";
 import { ensureDir, isDirectory, pathExists, readDirEntries, removeIfExists } from "../utils/fs.js";
 
@@ -19,7 +17,7 @@ const DEFAULT_WORKSPACE_TEMPLATE = {
   ],
   settings: {
     "chat.modeFilesLocations": {
-      "**/*.chatmode.md": true,
+      ".github/agents/**/*.md": true,
     },
   },
 };
@@ -33,6 +31,15 @@ tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'usa
 model: GPT-4.1 (copilot)
 ---`;
 
+/**
+ * Default subagent chatmode content
+ */
+const DEFAULT_SUBAGENT_CONTENT = `---
+description: 'Subagent'
+tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo', 'todos', 'runSubagent', 'runTests']
+---
+`;
+
 export interface ProvisionOptions {
   targetRoot: string;
   subagents: number;
@@ -41,6 +48,7 @@ export interface ProvisionOptions {
   dryRun?: boolean;
   workspaceTemplate?: Record<string, unknown>;
   wakeupContent?: string;
+  subagentContent?: string;
 }
 
 export interface ProvisionResult {
@@ -58,6 +66,7 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
     dryRun = false,
     workspaceTemplate = DEFAULT_WORKSPACE_TEMPLATE,
     wakeupContent = DEFAULT_WAKEUP_CONTENT,
+    subagentContent = DEFAULT_SUBAGENT_CONTENT,
   } = options;
 
   if (!Number.isInteger(subagents) || subagents < 1) {
@@ -111,9 +120,11 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
     }
 
     const subagentDir = subagent.absolutePath;
+    const githubAgentsDir = path.join(subagentDir, ".github", "agents");
     const lockFile = path.join(subagentDir, lockName);
     const workspaceDst = path.join(subagentDir, `${path.basename(subagentDir)}.code-workspace`);
-    const wakeupDst = path.join(subagentDir, DEFAULT_WAKEUP_FILENAME);
+    const wakeupDst = path.join(githubAgentsDir, "wakeup.md");
+    const subagentDst = path.join(githubAgentsDir, "subagent.md");
 
     const isLocked = await pathExists(lockFile);
     if (isLocked && !force) {
@@ -123,8 +134,10 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
     if (isLocked && force) {
       if (!dryRun) {
         await removeIfExists(lockFile);
+        await ensureDir(githubAgentsDir);
         await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), "utf8");
         await writeFile(wakeupDst, wakeupContent, "utf8");
+        await writeFile(subagentDst, subagentContent, "utf8");
       }
       created.push(subagentDir);
       lockedSubagents.delete(subagentDir);
@@ -135,8 +148,10 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
     // Force overwrite even if unlocked
     if (!isLocked && force) {
       if (!dryRun) {
+        await ensureDir(githubAgentsDir);
         await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), "utf8");
         await writeFile(wakeupDst, wakeupContent, "utf8");
+        await writeFile(subagentDst, subagentContent, "utf8");
       }
       created.push(subagentDir);
       subagentsProvisioned += 1;
@@ -144,8 +159,10 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
     }
 
     if (!dryRun && !(await pathExists(workspaceDst))) {
+      await ensureDir(githubAgentsDir);
       await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), "utf8");
       await writeFile(wakeupDst, wakeupContent, "utf8");
+      await writeFile(subagentDst, subagentContent, "utf8");
     }
 
     skippedExisting.push(subagentDir);
@@ -156,13 +173,17 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
   while (subagentsProvisioned < subagents) {
     nextIndex += 1;
     const subagentDir = path.join(targetPath, `subagent-${nextIndex}`);
+    const githubAgentsDir = path.join(subagentDir, ".github", "agents");
     const workspaceDst = path.join(subagentDir, `${path.basename(subagentDir)}.code-workspace`);
-    const wakeupDst = path.join(subagentDir, DEFAULT_WAKEUP_FILENAME);
+    const wakeupDst = path.join(githubAgentsDir, "wakeup.md");
+    const subagentDst = path.join(githubAgentsDir, "subagent.md");
 
     if (!dryRun) {
       await ensureDir(subagentDir);
+      await ensureDir(githubAgentsDir);
       await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), "utf8");
       await writeFile(wakeupDst, wakeupContent, "utf8");
+      await writeFile(subagentDst, subagentContent, "utf8");
     }
 
     created.push(subagentDir);

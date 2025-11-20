@@ -10,7 +10,7 @@ import {
   listSubagents,
 } from "../src/vscode/agentDispatch.js";
 import { provisionSubagents } from "../src/vscode/provision.js";
-import { DEFAULT_LOCK_NAME, DEFAULT_WORKSPACE_FILENAME } from "../src/vscode/constants.js";
+import { DEFAULT_LOCK_NAME } from "../src/vscode/constants.js";
 import { pathExists } from "../src/utils/fs.js";
 
 // Mock child_process
@@ -44,7 +44,6 @@ vi.mock("util", async () => {
 
 describe("agent dispatch", () => {
   let tmpDir: string;
-  let templateDir: string;
   let targetRoot: string;
   let promptFile: string;
   let customWorkspaceTemplate: string;
@@ -53,12 +52,6 @@ describe("agent dispatch", () => {
     // Create temporary directory for tests
     tmpDir = path.join(os.tmpdir(), `subagent-test-${Date.now()}-${Math.random().toString(36).substring(7)}`);
     await mkdir(tmpDir, { recursive: true });
-
-    // Create template directory
-    templateDir = path.join(tmpDir, "template");
-    await mkdir(templateDir, { recursive: true });
-    await writeFile(path.join(templateDir, DEFAULT_WORKSPACE_FILENAME), "{}");
-    await writeFile(path.join(templateDir, "wakeup.chatmode.md"), "# Wakeup");
 
     // Create target root directory
     targetRoot = path.join(tmpDir, "agents");
@@ -97,7 +90,6 @@ describe("agent dispatch", () => {
     it("should find first unlocked subagent", async () => {
       // Provision 3 subagents
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 3,
         lockName: DEFAULT_LOCK_NAME,
@@ -114,7 +106,6 @@ describe("agent dispatch", () => {
     it("should skip locked subagents", async () => {
       // Provision 3 subagents
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 3,
         lockName: DEFAULT_LOCK_NAME,
@@ -134,7 +125,6 @@ describe("agent dispatch", () => {
     it("should return null when all subagents are locked", async () => {
       // Provision 2 subagents
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 2,
         lockName: DEFAULT_LOCK_NAME,
@@ -169,7 +159,6 @@ describe("agent dispatch", () => {
     it("should return error for nonexistent prompt file", async () => {
       // Provision 1 subagent
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 1,
         lockName: DEFAULT_LOCK_NAME,
@@ -192,7 +181,6 @@ describe("agent dispatch", () => {
     it("should succeed in dry run mode", async () => {
       // Provision 1 subagent
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 1,
         lockName: DEFAULT_LOCK_NAME,
@@ -219,7 +207,6 @@ describe("agent dispatch", () => {
     it("should create lock file when dispatching", async () => {
       // Provision 1 subagent
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 1,
         lockName: DEFAULT_LOCK_NAME,
@@ -265,7 +252,6 @@ describe("agent dispatch", () => {
     it("should copy chatmode file", async () => {
       // Provision 1 subagent
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 1,
         lockName: DEFAULT_LOCK_NAME,
@@ -303,10 +289,13 @@ describe("agent dispatch", () => {
 
       expect(exitCode).toBe(0);
 
-      // Check that a chatmode file was created
-      const files = await import("fs/promises").then((fs) => fs.readdir(subagentDir));
-      const chatmodeFiles = files.filter((f) => f.endsWith(".chatmode.md"));
-      expect(chatmodeFiles.length).toBeGreaterThan(0);
+      // Check that agent files were created in .github/agents
+      const githubAgentsDir = path.join(subagentDir, ".github", "agents");
+      expect(await pathExists(githubAgentsDir)).toBe(true);
+      
+      const files = await import("fs/promises").then((fs) => fs.readdir(githubAgentsDir));
+      const agentFiles = files.filter((f) => f.endsWith(".md"));
+      expect(agentFiles.length).toBeGreaterThanOrEqual(3); // wakeup.md, subagent.md, and custom prompt
     });
   });
 
@@ -326,7 +315,6 @@ describe("agent dispatch", () => {
 
     it("supports a single query batch", async () => {
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 1,
         lockName: DEFAULT_LOCK_NAME,
@@ -375,7 +363,6 @@ describe("agent dispatch", () => {
 
     it("creates request files for multiple queries", async () => {
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 1,
         lockName: DEFAULT_LOCK_NAME,
@@ -428,7 +415,6 @@ describe("agent dispatch", () => {
 
     it("waits for all responses when wait is true", async () => {
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 1,
         lockName: DEFAULT_LOCK_NAME,
@@ -495,7 +481,6 @@ describe("agent dispatch", () => {
   describe("dispatchAgentSession", () => {
     it("returns structured data in dry run mode", async () => {
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 1,
         lockName: DEFAULT_LOCK_NAME,
@@ -543,7 +528,6 @@ describe("agent dispatch", () => {
     it("should list provisioned subagents", async () => {
       // Provision 3 subagents
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 3,
         lockName: DEFAULT_LOCK_NAME,
@@ -565,7 +549,6 @@ describe("agent dispatch", () => {
     it("should output JSON when requested", async () => {
       // Provision 2 subagents
       await provisionSubagents({
-        templateDir,
         targetRoot,
         subagents: 2,
         lockName: DEFAULT_LOCK_NAME,

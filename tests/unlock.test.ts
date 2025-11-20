@@ -3,12 +3,11 @@ import { mkdir, writeFile } from "fs/promises";
 import os from "os";
 import path from "path";
 import { provisionSubagents, unlockSubagents } from "../src/vscode/provision.js";
-import { DEFAULT_LOCK_NAME, DEFAULT_WORKSPACE_FILENAME } from "../src/vscode/constants.js";
+import { DEFAULT_LOCK_NAME } from "../src/vscode/constants.js";
 import { pathExists } from "../src/utils/fs.js";
 
 describe("unlock", () => {
   let tmpDir: string;
-  let templateDir: string;
   let targetRoot: string;
 
   beforeEach(async () => {
@@ -16,18 +15,12 @@ describe("unlock", () => {
     tmpDir = path.join(os.tmpdir(), `subagent-test-${Date.now()}-${Math.random().toString(36).substring(7)}`);
     await mkdir(tmpDir, { recursive: true });
 
-    // Create template directory
-    templateDir = path.join(tmpDir, "template");
-    await mkdir(templateDir, { recursive: true });
-    await writeFile(path.join(templateDir, DEFAULT_WORKSPACE_FILENAME), "{}");
-
     // Create target root directory
     targetRoot = path.join(tmpDir, "agents");
     await mkdir(targetRoot, { recursive: true });
 
     // Provision 3 subagents
     await provisionSubagents({
-      templateDir,
       targetRoot,
       subagents: 3,
       lockName: DEFAULT_LOCK_NAME,
