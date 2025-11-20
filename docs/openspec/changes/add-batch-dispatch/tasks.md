@@ -27,10 +27,11 @@
    - **Validation**: Chat receives correct batch instruction
 
 5. **Handle batch response files**
-   - Define response file naming convention for batch results
-   - Create or identify response collection strategy
-   - Wait for batch completion signal (may need new mechanism)
-   - **Validation**: Response files correctly associated with queries
+   - Define response file naming: `{timestamp}_{index}_res.tmp.md` → `{timestamp}_{index}_res.md`
+   - Implement polling mechanism to wait for all N response files when `wait: true`
+   - Populate `responseFiles` array in result when all responses complete
+   - Return immediately with `responseFiles: undefined` when `wait: false`
+   - **Validation**: Response files correctly associated with queries, wait behavior works correctly
 
 ## Phase 2: Testing & Documentation
 

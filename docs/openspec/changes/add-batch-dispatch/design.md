@@ -100,34 +100,50 @@ Call the #runSubagent tool (not the subagent CLI) for each attached req.md file 
 
 ## Response Handling Strategy
 
-### Challenge
+### Approach: Individual Response Files
 
-With multiple queries, we need a way to know when the batch is complete. Options:
+Each query generates its own response file pair:
+- `{timestamp}_{index}_res.tmp.md` (temporary, being written)
+- `{timestamp}_{index}_res.md` (final, complete)
 
-**Option A: Delegate to VS Code**
-- VS Code's `#runSubagent` handles all coordination
-- We wait for a single "batch complete" signal
-- **Trade-off**: Simpler implementation, but VS Code must handle completion signaling
+The VS Code agent (via `#runSubagent`) is responsible for:
+1. Processing each attached `*_req.md` file
+2. Writing results to corresponding `*_res.tmp.md` files
+3. Renaming each `.tmp.md` to `.md` when complete
 
-**Option B: Individual Response Files**
-- Each query generates `{timestamp}_{index}_res.md`
-- Wait for all N response files to appear
-- **Trade-off**: More complex tracking, but precise per-query status
+### Wait Behavior
 
-**Recommendation**: Start with **Option A** (simpler, aligns with delegation strategy). The batch completion signal can be a single file like `{timestamp}_batch_complete.md` written by the VS Code agent after all `#runSubagent` calls finish.
+**When `wait: true`**:
+- `dispatchBatchAgent()` polls for all N response files
+- Waits until all `{timestamp}_{index}_res.md` files exist
+- Returns `BatchDispatchResult` with populated `responseFiles` array
 
-### Response File Convention (Option B - Future)
+**When `wait: false`**:
+- `dispatchBatchAgent()` returns immediately after launching VS Code
+- `responseFiles` is undefined in result
+- Caller is responsible for monitoring response file creation
 
-If we later need per-query responses:
+### Response File Convention
 
 ```
 messages/
   20251120143000_0_req.md
-  20251120143000_0_res.md      # Response for query 0
+  20251120143000_0_res.tmp.md  # Being written
+  20251120143000_0_res.md      # Complete ✓
   20251120143000_1_req.md
-  20251120143000_1_res.md      # Response for query 1
+  20251120143000_1_res.tmp.md  # Being written
+  20251120143000_1_res.md      # Complete ✓
   20251120143000_2_req.md
-  20251120143000_2_res.md      # Response for query 2
+  20251120143000_2_res.tmp.md  # Still processing...
+```
+
+### Completion Detection
+
+The system detects batch completion by checking for the existence of all final response files:
+```typescript
+const allResponsesComplete = responseFiles.every(file => 
+  fs.existsSync(file.replace('_res.tmp.md', '_res.md'))
+);
 ```
 
 ## Error Handling
