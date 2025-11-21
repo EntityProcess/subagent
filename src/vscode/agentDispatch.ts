@@ -36,18 +36,8 @@ const DEFAULT_WORKSPACE_TEMPLATE = {
  */
 const DEFAULT_WAKEUP_CONTENT = `---
 description: 'Wake-up Signal'
-tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo']
-model: GPT-4.1 (copilot)
+model: Grok Code Fast 1 (copilot)
 ---`;
-
-/**
- * Default subagent agent content
- */
-const DEFAULT_SUBAGENT_CONTENT = `---
-description: 'Subagent'
-tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo', 'todos', 'runSubagent', 'runTests']
----
-`;
 
 export function getSubagentRoot(vscodeCmd: string = "code"): string {
   return getDefaultSubagentRoot(vscodeCmd);
@@ -153,7 +143,6 @@ async function ensureWorkspaceFocused(
   const wakeupDst = path.join(githubAgentsDir, "wakeup.md");
   const subagentDst = path.join(githubAgentsDir, "subagent.md");
   await writeFile(wakeupDst, DEFAULT_WAKEUP_CONTENT, "utf8");
-  await writeFile(subagentDst, DEFAULT_SUBAGENT_CONTENT, "utf8");
 
   spawn(vscodeCmd, [workspacePath], { windowsHide: true, shell: true, detached: false });
   await sleep(100);
@@ -428,7 +417,7 @@ function createBatchOrchestratorPrompt(
   vscodeCmd: string,
 ): string {
   const requestLines = requestFiles
-    .map((file, index) => `${index + 1}. #runSubagent messages/${path.basename(file)}`)
+    .map((file, index) => `${index + 1}. messages/${path.basename(file)}`)
     .join("\n");
   const responseList = responseFiles.map((file) => `"${path.basename(file)}"`).join(", ");
 
@@ -442,7 +431,7 @@ After ALL queries complete, verify all responses exist and unlock:
 \`\`\`powershell
 $responses = @(${responseList})
 $missing = $responses | Where-Object { -not (Test-Path "messages/$_") }
-if ($missing.Count -eq 0) { subagent ${vscodeCmd} unlock --subagent ${subagentName} }
+if ($missing.Count -eq 0) { del subagent.lock }
 \`\`\`
 `;
 }
@@ -887,7 +876,7 @@ export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise
     const chatAttachments = [orchestratorFile, ...attachments];
     const orchestratorUri = pathToFileUri(orchestratorFile);
     const chatInstruction =
-      `Follow instructions in [${timestamp}_orchestrator.md](${orchestratorUri})`;
+      `Follow instructions in [${timestamp}_orchestrator.md](${orchestratorUri}). Use #runSubagent tool.`;
 
     if (dryRun) {
       return {

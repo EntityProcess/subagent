@@ -295,7 +295,7 @@ describe("agent dispatch", () => {
       
       const files = await import("fs/promises").then((fs) => fs.readdir(githubAgentsDir));
       const agentFiles = files.filter((f) => f.endsWith(".md"));
-      expect(agentFiles.length).toBeGreaterThanOrEqual(3); // wakeup.md, subagent.md, and custom prompt
+      expect(agentFiles.length).toBeGreaterThanOrEqual(2);
     });
   });
 

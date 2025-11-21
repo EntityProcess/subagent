@@ -31,15 +31,6 @@ tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'usa
 model: GPT-4.1 (copilot)
 ---`;
 
-/**
- * Default subagent chatmode content
- */
-const DEFAULT_SUBAGENT_CONTENT = `---
-description: 'Subagent'
-tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo', 'todos', 'runSubagent', 'runTests']
----
-`;
-
 export interface ProvisionOptions {
   targetRoot: string;
   subagents: number;
@@ -48,7 +39,6 @@ export interface ProvisionOptions {
   dryRun?: boolean;
   workspaceTemplate?: Record<string, unknown>;
   wakeupContent?: string;
-  subagentContent?: string;
 }
 
 export interface ProvisionResult {
@@ -65,8 +55,7 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
     force = false,
     dryRun = false,
     workspaceTemplate = DEFAULT_WORKSPACE_TEMPLATE,
-    wakeupContent = DEFAULT_WAKEUP_CONTENT,
-    subagentContent = DEFAULT_SUBAGENT_CONTENT,
+    wakeupContent = DEFAULT_WAKEUP_CONTENT
   } = options;
 
   if (!Number.isInteger(subagents) || subagents < 1) {
@@ -137,7 +126,6 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
         await ensureDir(githubAgentsDir);
         await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), "utf8");
         await writeFile(wakeupDst, wakeupContent, "utf8");
-        await writeFile(subagentDst, subagentContent, "utf8");
       }
       created.push(subagentDir);
       lockedSubagents.delete(subagentDir);
@@ -151,7 +139,6 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
         await ensureDir(githubAgentsDir);
         await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), "utf8");
         await writeFile(wakeupDst, wakeupContent, "utf8");
-        await writeFile(subagentDst, subagentContent, "utf8");
       }
       created.push(subagentDir);
       subagentsProvisioned += 1;
@@ -162,7 +149,6 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
       await ensureDir(githubAgentsDir);
       await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), "utf8");
       await writeFile(wakeupDst, wakeupContent, "utf8");
-      await writeFile(subagentDst, subagentContent, "utf8");
     }
 
     skippedExisting.push(subagentDir);
@@ -183,7 +169,6 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
       await ensureDir(githubAgentsDir);
       await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), "utf8");
       await writeFile(wakeupDst, wakeupContent, "utf8");
-      await writeFile(subagentDst, subagentContent, "utf8");
     }
 
     created.push(subagentDir);
