@@ -1,4 +1,6 @@
 export type {
+  BatchDispatchOptions,
+  BatchDispatchResult,
   DispatchOptions,
   DispatchSessionResult,
   ListOptions,
@@ -13,6 +15,7 @@ export type {
 
 export {
   dispatchAgent,
+  dispatchBatchAgent,
   dispatchAgentSession,
   getAllSubagentWorkspaces,
   getSubagentRoot,

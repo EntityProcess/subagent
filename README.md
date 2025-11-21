@@ -44,20 +44,26 @@ pnpm link --global
 
 2. **Start a chat with an agent (async mode - default)**:
    ```bash
-   subagent code chat "Your query here" [--prompt <prompt_file>]
+   subagent code chat -q "Your query here" [--prompt <prompt_file>]
    ```
    This claims an unlocked subagent, copies your prompt file (if provided) and any attachments, opens VS Code with a wakeup chatmode, and returns immediately.
    The agent writes its response to a file that you can monitor or read later.
 
 3. **Start a chat with an agent (sync mode - wait for response)**:
    ```bash
-   subagent code chat "Your query here" [--prompt <prompt_file>] --wait
+   subagent code chat -q "Your query here" [--prompt <prompt_file>] --wait
    ```
    This blocks until the agent completes and prints the response to stdout.
 
-4. **Use a custom workspace template**:
+4. **Send multiple queries to the same agent**:
    ```bash
-   subagent code chat "Your query here" --workspace-template ./my-workspace.code-workspace
+   subagent code chat -q "summarize the repo" -q "list TODOs" -q "suggest tests" --wait
+   ```
+   This sends all queries to the same subagent workspace, with each query running in its own isolated context.
+
+5. **Use a custom workspace template**:
+   ```bash
+   subagent code chat -q "Your query here" --workspace-template ./my-workspace.code-workspace
    ```
    This uses a custom `.code-workspace` file with your preferred settings, extensions, and folder configurations.
    
@@ -114,9 +120,9 @@ subagent code warmup [--subagents <count>] [--target-root <path>] [--dry-run]
 
 **Start a chat with an agent**:
 ```bash
-subagent code chat <query> [--prompt <prompt_file>] [--workspace-template <path>] [--attachment <path>] [--wait] [--dry-run]
+subagent code chat -q <query> [--prompt <prompt_file>] [--workspace-template <path>] [--attachment <path>] [--wait] [--dry-run]
 ```
-- `<query>`: User query to pass to the agent (required)
+- `-q, --query <text>`: User query to pass to the agent (required, repeatable for multiple queries)
 - `--prompt <prompt_file>`: Path to a prompt file to copy and attach (optional)
 - `--workspace-template <path>`: Path to a custom .code-workspace file to use as template (optional)
 - `--attachment <path>` / `-a`: Additional files to attach (repeatable)
@@ -124,6 +130,8 @@ subagent code chat <query> [--prompt <prompt_file>] [--workspace-template <path>
 - `--dry-run`: Preview without launching VS Code
 
 **Note**: By default, chat runs in **async mode** - it returns immediately after launching VS Code, and the agent writes its response to a timestamped file in the subagent's `messages/` directory. Use `--wait` for synchronous operation.
+
+When multiple queries are provided (using multiple `-q` options), all queries are sent to the same subagent workspace with each running in its own isolated context.
 
 **List provisioned subagents**:
 ```bash
@@ -146,7 +154,7 @@ subagent code unlock [--subagent <name>] [--all] [--target-root <path>] [--dry-r
 All commands are also available with `code-insiders` instead of `code`:
 ```bash
 subagent code-insiders provision --subagents 3
-subagent code-insiders chat "query" --prompt <prompt_file>
+subagent code-insiders chat -q "query" --prompt <prompt_file>
 subagent code-insiders warmup
 subagent code-insiders list
 subagent code-insiders unlock --all

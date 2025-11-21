@@ -7,15 +7,18 @@ import {
   DEFAULT_ALIVE_FILENAME,
   DEFAULT_LOCK_NAME,
   DEFAULT_SUBAGENT_ROOT,
-  DEFAULT_WAKEUP_FILENAME,
-  DEFAULT_WORKSPACE_FILENAME,
   getDefaultSubagentRoot,
 } from "./constants.js";
 import { pathExists, readDirEntries, removeIfExists } from "../utils/fs.js";
+import { pathToFileUri } from "../utils/path.js";
 import { sleep } from "../utils/time.js";
 import { transformWorkspacePaths } from "../utils/workspace.js";
 
 const execAsync = promisify(exec);
+
+function generateTimestamp(): string {
+  return new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+}
 
 /**
  * Default workspace template content
@@ -25,25 +28,37 @@ const DEFAULT_WORKSPACE_TEMPLATE = {
     {
       path: ".",
     },
-  ],
-  settings: {
-    "chat.modeFilesLocations": {
-      "**/*.chatmode.md": true,
-    },
-  },
+  ]
 };
 
 /**
- * Default wakeup chatmode content
+ * Default wakeup agent content
  */
 const DEFAULT_WAKEUP_CONTENT = `---
 description: 'Wake-up Signal'
-tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo']
-model: GPT-4.1 (copilot)
+model: Grok Code Fast 1 (copilot)
 ---`;
 
 export function getSubagentRoot(vscodeCmd: string = "code"): string {
   return getDefaultSubagentRoot(vscodeCmd);
+}
+
+async function resolvePromptFile(promptFile: string | undefined): Promise<string | undefined> {
+  if (!promptFile) {
+    return undefined;
+  }
+
+  const resolvedPrompt = path.resolve(promptFile);
+  if (!(await pathExists(resolvedPrompt))) {
+    throw new Error(`Prompt file not found: ${resolvedPrompt}`);
+  }
+
+  const promptStats = await stat(resolvedPrompt);
+  if (!promptStats.isFile()) {
+    throw new Error(`Prompt file must be a file, not a directory: ${resolvedPrompt}`);
+  }
+
+  return resolvedPrompt;
 }
 
 export async function getAllSubagentWorkspaces(subagentRoot: string): Promise<string[]> {
@@ -123,7 +138,10 @@ async function ensureWorkspaceFocused(
   const aliveFile = path.join(subagentDir, DEFAULT_ALIVE_FILENAME);
   await removeIfExists(aliveFile);
 
-  const wakeupDst = path.join(subagentDir, DEFAULT_WAKEUP_FILENAME);
+  const githubAgentsDir = path.join(subagentDir, ".github", "agents");
+  await mkdir(githubAgentsDir, { recursive: true });
+  const wakeupDst = path.join(githubAgentsDir, "wakeup.md");
+  const subagentDst = path.join(githubAgentsDir, "subagent.md");
   await writeFile(wakeupDst, DEFAULT_WAKEUP_CONTENT, "utf8");
 
   spawn(vscodeCmd, [workspacePath], { windowsHide: true, shell: true, detached: false });
@@ -199,12 +217,16 @@ async function createSubagentLock(subagentDir: string): Promise<string> {
     );
   }
 
-  const chatmodeFiles = await readdir(subagentDir);
-  await Promise.all(
-    chatmodeFiles
-      .filter((file) => file.endsWith(".chatmode.md"))
-      .map((file) => removeIfExists(path.join(subagentDir, file))),
-  );
+  const githubAgentsDir = path.join(subagentDir, ".github", "agents");
+  if (await pathExists(githubAgentsDir)) {
+    const agentFiles = await readdir(githubAgentsDir);
+    const preservedFiles = new Set(["wakeup.md", "subagent.md"]);
+    await Promise.all(
+      agentFiles
+        .filter((file) => file.endsWith(".md") && !preservedFiles.has(file))
+        .map((file) => removeIfExists(path.join(githubAgentsDir, file))),
+    );
+  }
 
   const lockFile = path.join(subagentDir, DEFAULT_LOCK_NAME);
   await writeFile(lockFile, "", { encoding: "utf8" });
@@ -256,6 +278,62 @@ async function waitForResponseOutput(responseFileFinal: string, pollInterval = 1
   return false;
 }
 
+async function waitForBatchResponses(
+  responseFilesFinal: readonly string[],
+  pollInterval = 1000,
+  silent = false,
+): Promise<boolean> {
+  if (!silent) {
+    const fileList = responseFilesFinal.map((file) => path.basename(file)).join(", ");
+    console.error(`waiting for ${responseFilesFinal.length} batch response(s): ${fileList}`);
+  }
+
+  try {
+    const pending = new Set(responseFilesFinal);
+    while (pending.size > 0) {
+      for (const file of [...pending]) {
+        if (await pathExists(file)) {
+          pending.delete(file);
+        }
+      }
+
+      if (pending.size > 0) {
+        await sleep(pollInterval);
+      }
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
+
+  for (const file of responseFilesFinal) {
+    let attempts = 0;
+    const maxAttempts = 10;
+    while (attempts < maxAttempts) {
+      try {
+        const content = await readFile(file, { encoding: "utf8" });
+        if (!silent) {
+          process.stdout.write(`${content}\n`);
+        }
+        break;
+      } catch (error) {
+        attempts += 1;
+        if ((error as NodeJS.ErrnoException).code !== "EBUSY" || attempts >= maxAttempts) {
+          if (!silent) {
+            console.error(`error: failed to read agent response: ${(error as Error).message}`);
+          }
+          return false;
+        }
+        await sleep(pollInterval);
+      }
+    }
+  }
+
+  return true;
+}
+
 async function prepareSubagentDirectory(
   subagentDir: string,
   promptFile: string | undefined,
@@ -282,11 +360,13 @@ async function prepareSubagentDirectory(
   }
 
   if (promptFile) {
-    const chatmodeFile = path.join(subagentDir, `${chatId}.chatmode.md`);
+    const githubAgentsDir = path.join(subagentDir, ".github", "agents");
+    await mkdir(githubAgentsDir, { recursive: true });
+    const agentFile = path.join(githubAgentsDir, `${chatId}.md`);
     try {
-      await copyFile(promptFile, chatmodeFile);
+      await copyFile(promptFile, agentFile);
     } catch (error) {
-      console.error(`error: Failed to copy prompt file to chatmode: ${(error as Error).message}`);
+      console.error(`error: Failed to copy prompt file to agent mode: ${(error as Error).message}`);
       return 1;
     }
   }
@@ -316,6 +396,44 @@ subagent ${vscodeCmd} unlock --subagent ${subagentName}
 \`\`\`
 
 Do not proceed to step 2 until your response is completely written to the temporary file.`;
+}
+
+function createBatchRequestPrompt(userQuery: string, responseFileTmp: string, responseFileFinal: string): string {
+  return `[[ ## task ## ]]
+
+${userQuery}
+
+[[ ## system_instructions ## ]]
+
+Write your complete response to: ${responseFileTmp}
+When completely finished and the response is stable, rename it to: ${responseFileFinal}
+Do not unlock the workspace from this request; batch orchestration will handle unlocking after all responses are ready.`;
+}
+
+function createBatchOrchestratorPrompt(
+  requestFiles: readonly string[],
+  responseFiles: readonly string[],
+  subagentName: string,
+  vscodeCmd: string,
+): string {
+  const requestLines = requestFiles
+    .map((file, index) => `${index + 1}. messages/${path.basename(file)}`)
+    .join("\n");
+  const responseList = responseFiles.map((file) => `"${path.basename(file)}"`).join(", ");
+
+  return `Process these queries in isolated contexts using the #runSubagent tool (listed in Available Actions).
+DO NOT read the request files - only pass the file paths to subagent:
+
+${requestLines}
+
+After ALL queries complete, verify all responses exist and unlock:
+
+\`\`\`powershell
+$responses = @(${responseList})
+$missing = $responses | Where-Object { -not (Test-Path "messages/$_") }
+if ($missing.Count -eq 0) { del subagent.lock }
+\`\`\`
+`;
 }
 
 async function resolveAttachments(extraAttachments: readonly string[] | undefined): Promise<string[]> {
@@ -371,6 +489,38 @@ async function launchVsCodeWithChat(
   }
 }
 
+async function launchVsCodeWithBatchChat(
+  subagentDir: string,
+  chatId: string,
+  attachmentPaths: string[],
+  chatInstruction: string,
+  vscodeCmd: string,
+): Promise<boolean> {
+  try {
+    const workspacePath = path.join(subagentDir, `${path.basename(subagentDir)}.code-workspace`);
+    const messagesDir = path.join(subagentDir, "messages");
+    await mkdir(messagesDir, { recursive: true });
+
+    const chatArgs = ["-r", "chat", "-m", chatId];
+    for (const attachment of attachmentPaths) {
+      chatArgs.push("-a", attachment);
+    }
+    chatArgs.push(chatInstruction);
+
+    const workspaceReady = await ensureWorkspaceFocused(workspacePath, path.basename(subagentDir), subagentDir, vscodeCmd);
+    if (!workspaceReady) {
+      console.error("warning: Workspace may not be fully ready");
+    }
+
+    await sleep(500);
+    spawn(vscodeCmd, chatArgs, { windowsHide: true, shell: true, detached: false });
+    return true;
+  } catch (error) {
+    console.error(`warning: Failed to launch VS Code: ${(error as Error).message}`);
+    return false;
+  }
+}
+
 export interface DispatchOptions {
   userQuery: string;
   promptFile?: string;
@@ -381,6 +531,19 @@ export interface DispatchOptions {
   vscodeCmd?: string;
   subagentRoot?: string;
   silent?: boolean;
+}
+
+export interface BatchDispatchOptions extends Omit<DispatchOptions, "userQuery"> {
+  userQueries: string[];
+}
+
+export interface BatchDispatchResult {
+  readonly exitCode: number;
+  readonly subagentName?: string;
+  readonly requestFiles: string[];
+  readonly responseFiles?: string[];
+  readonly queryCount: number;
+  readonly error?: string;
 }
 
 export async function dispatchAgent(options: DispatchOptions): Promise<number> {
@@ -397,18 +560,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
   } = options;
 
   try {
-    let resolvedPrompt: string | undefined;
-    if (promptFile) {
-      resolvedPrompt = path.resolve(promptFile);
-      if (!(await pathExists(resolvedPrompt))) {
-        throw new Error(`Prompt file not found: ${resolvedPrompt}`);
-      }
-
-      const promptStats = await stat(resolvedPrompt);
-      if (!promptStats.isFile()) {
-        throw new Error(`Prompt file must be a file, not a directory: ${resolvedPrompt}`);
-      }
-    }
+    const resolvedPrompt = await resolvePromptFile(promptFile);
 
     const subagentRootPath = subagentRoot ?? getSubagentRoot(vscodeCmd);
     const subagentDir = await findUnlockedSubagent(subagentRootPath);
@@ -433,7 +585,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
 
     const attachments = await resolveAttachments(extraAttachments);
 
-    const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+    const timestamp = generateTimestamp();
     const messagesDir = path.join(subagentDir, "messages");
     const responseFileTmp = path.join(messagesDir, `${timestamp}_res.tmp.md`);
     const responseFileFinal = path.join(messagesDir, `${timestamp}_res.md`);
@@ -508,22 +660,13 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
 
   try {
     let resolvedPrompt: string | undefined;
-    if (promptFile) {
-      resolvedPrompt = path.resolve(promptFile);
-      if (!(await pathExists(resolvedPrompt))) {
-        return {
-          exitCode: 1,
-          error: `Prompt file not found: ${resolvedPrompt}`,
-        };
-      }
-
-      const promptStats = await stat(resolvedPrompt);
-      if (!promptStats.isFile()) {
-        return {
-          exitCode: 1,
-          error: `Prompt file must be a file, not a directory: ${resolvedPrompt}`,
-        };
-      }
+    try {
+      resolvedPrompt = await resolvePromptFile(promptFile);
+    } catch (error) {
+      return {
+        exitCode: 1,
+        error: (error as Error).message,
+      };
     }
 
     const subagentRootPath = subagentRoot ?? getSubagentRoot(vscodeCmd);
@@ -558,7 +701,7 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
       };
     }
 
-    const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+    const timestamp = generateTimestamp();
     const messagesDir = path.join(subagentDir, "messages");
     const responseFileTmp = path.join(messagesDir, `${timestamp}_res.tmp.md`);
     const responseFileFinal = path.join(messagesDir, `${timestamp}_res.md`);
@@ -624,6 +767,182 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
   } catch (error) {
     return {
       exitCode: 1,
+      error: (error as Error).message,
+    };
+  }
+}
+
+export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise<BatchDispatchResult> {
+  const {
+    userQueries,
+    promptFile,
+    extraAttachments,
+    workspaceTemplate,
+    dryRun = false,
+    wait = false,
+    vscodeCmd = "code",
+    subagentRoot,
+    silent = false,
+  } = options;
+
+  if (!userQueries || userQueries.length === 0) {
+    return {
+      exitCode: 1,
+      requestFiles: [],
+      queryCount: 0,
+      error: "At least one query is required for batch dispatch",
+    };
+  }
+
+  const queryCount = userQueries.length;
+  let requestFiles: string[] = [];
+  let responseFilesFinal: string[] = [];
+  let subagentName: string | undefined;
+
+  try {
+    let resolvedPrompt: string | undefined;
+    try {
+      resolvedPrompt = await resolvePromptFile(promptFile);
+    } catch (error) {
+      return {
+        exitCode: 1,
+        requestFiles,
+        queryCount,
+        error: (error as Error).message,
+      };
+    }
+
+    const subagentRootPath = subagentRoot ?? getSubagentRoot(vscodeCmd);
+    const subagentDir = await findUnlockedSubagent(subagentRootPath);
+    if (!subagentDir) {
+      return {
+        exitCode: 1,
+        requestFiles,
+        queryCount,
+        error:
+          "No unlocked subagents available. Provision additional subagents with: subagent code provision --subagents <desired_total>",
+      };
+    }
+
+    subagentName = path.basename(subagentDir);
+    const chatId = Math.random().toString(16).slice(2, 10);
+    const preparationResult = await prepareSubagentDirectory(subagentDir, resolvedPrompt, chatId, workspaceTemplate, dryRun);
+    if (preparationResult !== 0) {
+      return {
+        exitCode: preparationResult,
+        subagentName,
+        requestFiles,
+        queryCount,
+        error: "Failed to prepare subagent workspace",
+      };
+    }
+
+    let attachments: string[];
+    try {
+      attachments = await resolveAttachments(extraAttachments);
+    } catch (attachmentError) {
+      return {
+        exitCode: 1,
+        subagentName,
+        requestFiles,
+        queryCount,
+        error: (attachmentError as Error).message,
+      };
+    }
+
+    const timestamp = generateTimestamp();
+    const messagesDir = path.join(subagentDir, "messages");
+
+    requestFiles = userQueries.map((_, index) => path.join(messagesDir, `${timestamp}_${index}_req.md`));
+    const responseTmpFiles = userQueries.map((_, index) => path.join(messagesDir, `${timestamp}_${index}_res.tmp.md`));
+    responseFilesFinal = userQueries.map((_, index) => path.join(messagesDir, `${timestamp}_${index}_res.md`));
+    const orchestratorFile = path.join(messagesDir, `${timestamp}_orchestrator.md`);
+
+    if (!dryRun) {
+      await Promise.all(
+        userQueries.map((query, index) =>
+          writeFile(
+            requestFiles[index],
+            createBatchRequestPrompt(query, responseTmpFiles[index], responseFilesFinal[index]),
+            { encoding: "utf8" },
+          ),
+        ),
+      );
+
+      const orchestratorContent = createBatchOrchestratorPrompt(requestFiles, responseFilesFinal, subagentName, vscodeCmd);
+      await writeFile(orchestratorFile, orchestratorContent, { encoding: "utf8" });
+    }
+
+    const chatAttachments = [orchestratorFile, ...attachments];
+    const orchestratorUri = pathToFileUri(orchestratorFile);
+    const chatInstruction =
+      `Follow instructions in [${timestamp}_orchestrator.md](${orchestratorUri}). Use #runSubagent tool.`;
+
+    if (dryRun) {
+      return {
+        exitCode: 0,
+        subagentName,
+        requestFiles,
+        responseFiles: wait ? responseFilesFinal : undefined,
+        queryCount,
+      };
+    }
+
+    const launchSuccess = await launchVsCodeWithBatchChat(
+      subagentDir,
+      chatId,
+      chatAttachments,
+      chatInstruction,
+      vscodeCmd,
+    );
+
+    if (!launchSuccess) {
+      return {
+        exitCode: 1,
+        subagentName,
+        requestFiles,
+        queryCount,
+        error: "Failed to launch VS Code for batch dispatch",
+      };
+    }
+
+    if (!wait) {
+      return {
+        exitCode: 0,
+        subagentName,
+        requestFiles,
+        queryCount,
+      };
+    }
+
+    const responsesCompleted = await waitForBatchResponses(responseFilesFinal, 1000, silent);
+    if (!responsesCompleted) {
+      return {
+        exitCode: 1,
+        subagentName,
+        requestFiles,
+        responseFiles: responseFilesFinal,
+        queryCount,
+        error: "Timed out waiting for batch responses",
+      };
+    }
+
+    await removeSubagentLock(subagentDir);
+
+    return {
+      exitCode: 0,
+      subagentName,
+      requestFiles,
+      responseFiles: responseFilesFinal,
+      queryCount,
+    };
+  } catch (error) {
+    return {
+      exitCode: 1,
+      subagentName,
+      requestFiles,
+      responseFiles: responseFilesFinal.length > 0 ? responseFilesFinal : undefined,
+      queryCount,
       error: (error as Error).message,
     };
   }
