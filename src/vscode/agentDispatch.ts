@@ -421,7 +421,7 @@ function createBatchOrchestratorPrompt(
     .join("\n");
   const responseList = responseFiles.map((file) => `"${path.basename(file)}"`).join(", ");
 
-  return `Process these queries in isolated contexts using the #runSubagent tool in VS Code.
+  return `Process these queries in isolated contexts using the #runSubagent tool (listed in Available Actions).
 DO NOT read the request files - only pass the file paths to subagent:
 
 ${requestLines}
