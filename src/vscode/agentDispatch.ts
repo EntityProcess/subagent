@@ -378,8 +378,6 @@ function createRequestPrompt(
   userQuery: string,
   responseFileTmp: string,
   responseFileFinal: string,
-  subagentName: string,
-  vscodeCmd: string,
 ): string {
   return `[[ ## task ## ]]
 
@@ -392,7 +390,7 @@ ${userQuery}
 2. When completely finished, run these PowerShell commands to signal completion:
 \`\`\`
 Move-Item -LiteralPath '${responseFileTmp}' -Destination '${responseFileFinal}'
-subagent ${vscodeCmd} unlock --subagent ${subagentName}
+if (Test-Path subagent.lock) { del subagent.lock }
 \`\`\`
 
 Do not proceed to step 2 until your response is completely written to the temporary file.`;
@@ -413,8 +411,6 @@ Do not unlock the workspace from this request; batch orchestration will handle u
 function createBatchOrchestratorPrompt(
   requestFiles: readonly string[],
   responseFiles: readonly string[],
-  subagentName: string,
-  vscodeCmd: string,
 ): string {
   const requestLines = requestFiles
     .map((file, index) => `${index + 1}. messages/${path.basename(file)}`)
@@ -590,7 +586,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
     const responseFileTmp = path.join(messagesDir, `${timestamp}_res.tmp.md`);
     const responseFileFinal = path.join(messagesDir, `${timestamp}_res.md`);
 
-    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal, path.basename(subagentDir), vscodeCmd);
+    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal);
 
     process.stdout.write(
       `${JSON.stringify({ success: true, subagent_name: path.basename(subagentDir), response_file: responseFileFinal })}\n`,
@@ -706,7 +702,7 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
     const responseFileTmp = path.join(messagesDir, `${timestamp}_res.tmp.md`);
     const responseFileFinal = path.join(messagesDir, `${timestamp}_res.md`);
 
-    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal, subagentName, vscodeCmd);
+    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal);
 
     if (dryRun) {
       return {
@@ -869,7 +865,7 @@ export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise
         ),
       );
 
-      const orchestratorContent = createBatchOrchestratorPrompt(requestFiles, responseFilesFinal, subagentName, vscodeCmd);
+      const orchestratorContent = createBatchOrchestratorPrompt(requestFiles, responseFilesFinal);
       await writeFile(orchestratorFile, orchestratorContent, { encoding: "utf8" });
     }
 
