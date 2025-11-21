@@ -3,6 +3,7 @@ import { Command } from "commander";
 
 import {
   dispatchAgent,
+  dispatchBatchAgent,
   listSubagents,
   warmupSubagents,
 } from "./vscode/agentDispatch.js";
@@ -126,8 +127,12 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
     });
 
   parent
-    .command("chat <query>")
+    .command("chat")
     .description("Start a chat with an agent in an isolated subagent workspace")
+    .option("-q, --query <text>", "User query to send to the agent (repeatable for multiple queries)", (value: string, previous: string[] = []) => {
+      previous.push(value);
+      return previous;
+    })
     .option("--prompt <promptFile>", "Path to a prompt file to copy and attach")
     .option("--workspace-template <path>", "Path to a custom .code-workspace file to use as template")
     .option("-a, --attachment <path>", "Additional attachment to forward to the chat", (value: string, previous: string[] = []) => {
@@ -137,20 +142,46 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
     .option("--dry-run", "Print what would be done without making changes", false)
     .option("-w, --wait", "Wait for response and print to stdout (sync mode)", false)
     .option("--silent", "Suppress informational output", false)
-    .action(async (query: string, options) => {
+    .action(async (options) => {
       try {
-        const exitCode = await dispatchAgent({
-          userQuery: query,
-          promptFile: options.prompt,
-          workspaceTemplate: options.workspaceTemplate,
-          extraAttachments: options.attachment as string[] | undefined,
-          dryRun: Boolean(options.dryRun),
-          wait: Boolean(options.wait),
-          silent: Boolean(options.silent),
-          vscodeCmd,
-        });
-        if (exitCode !== 0) {
-          process.exitCode = exitCode;
+        const queries = options.query as string[] | undefined;
+        if (!queries || queries.length === 0) {
+          logger.error("At least one query is required. Use -q or --query to specify queries.");
+          process.exitCode = 1;
+          return;
+        }
+
+        if (queries.length === 1) {
+          const exitCode = await dispatchAgent({
+            userQuery: queries[0],
+            promptFile: options.prompt,
+            workspaceTemplate: options.workspaceTemplate,
+            extraAttachments: options.attachment as string[] | undefined,
+            dryRun: Boolean(options.dryRun),
+            wait: Boolean(options.wait),
+            silent: Boolean(options.silent),
+            vscodeCmd,
+          });
+          if (exitCode !== 0) {
+            process.exitCode = exitCode;
+          }
+        } else {
+          const result = await dispatchBatchAgent({
+            userQueries: queries,
+            promptFile: options.prompt,
+            workspaceTemplate: options.workspaceTemplate,
+            extraAttachments: options.attachment as string[] | undefined,
+            dryRun: Boolean(options.dryRun),
+            wait: Boolean(options.wait),
+            silent: Boolean(options.silent),
+            vscodeCmd,
+          });
+          if (result.exitCode !== 0) {
+            if (result.error && !options.silent) {
+              console.error(`error: ${result.error}`);
+            }
+            process.exitCode = result.exitCode;
+          }
         }
       } catch (error) {
         logger.error({ err: error }, "Chat dispatch failed");

@@ -10,6 +10,7 @@ import {
   getDefaultSubagentRoot,
 } from "./constants.js";
 import { pathExists, readDirEntries, removeIfExists } from "../utils/fs.js";
+import { pathToFileUri } from "../utils/path.js";
 import { sleep } from "../utils/time.js";
 import { transformWorkspacePaths } from "../utils/workspace.js";
 
@@ -431,7 +432,8 @@ function createBatchOrchestratorPrompt(
     .join("\n");
   const responseList = responseFiles.map((file) => `"${path.basename(file)}"`).join(", ");
 
-  return `Process these queries sequentially in isolated contexts using #runSubagent (not subagent CLI):
+  return `Process these queries in isolated contexts using the #runSubagent tool in VS Code.
+DO NOT read the request files - only pass the file paths to subagent:
 
 ${requestLines}
 
@@ -883,8 +885,9 @@ export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise
     }
 
     const chatAttachments = [orchestratorFile, ...attachments];
+    const orchestratorUri = pathToFileUri(orchestratorFile);
     const chatInstruction =
-      "Call the #runSubagent tool (not the subagent CLI) for each request in the attached orchestrator to process them in isolated contexts";
+      `Follow instructions in [${timestamp}_orchestrator.md](${orchestratorUri})`;
 
     if (dryRun) {
       return {
