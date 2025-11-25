@@ -148,7 +148,7 @@ async function ensureWorkspaceFocused(
   await sleep(100);
 
   const wakeupChatId = "wakeup";
-  const chatArgs = ["-r", "chat", "-m", wakeupChatId, "create a file named .alive"];
+  const chatArgs = ["-r", "chat", "-m", wakeupChatId, `create a file named .alive in the ${path.basename(subagentDir)} folder`];
   spawn(vscodeCmd, chatArgs, { windowsHide: true, shell: true, detached: false });
 
   const start = Date.now();
