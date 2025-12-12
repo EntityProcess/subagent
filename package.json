@@ -24,10 +24,12 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"const fs=require('fs'); const path=require('path'); const src='src/vscode/templates'; const dst='dist/vscode/templates'; fs.mkdirSync(dst,{recursive:true}); fs.readdirSync(src).forEach(f=>fs.copyFileSync(path.join(src,f),path.join(dst,f)))\"",
     "dev": "tsx src/cli.ts",
     "start": "node --enable-source-maps dist/cli.js",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.config.integration.ts",
+    "test:all": "vitest run --config vitest.config.all.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "prepublishOnly": "pnpm build && pnpm test"

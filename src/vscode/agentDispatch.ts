@@ -2,6 +2,9 @@ import { exec, spawn } from "child_process";
 import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "fs/promises";
 import path from "path";
 import { promisify } from "util";
+import { fileURLToPath } from "url";
+
+import { renderTemplate } from "../utils/template.js";
 
 import {
   DEFAULT_ALIVE_FILENAME,
@@ -38,6 +41,26 @@ const DEFAULT_WAKEUP_CONTENT = `---
 description: 'Wake-up Signal'
 model: Grok Code Fast 1 (copilot)
 ---`;
+
+/**
+ * Get the default templates directory path
+ */
+function getTemplatesDir(): string {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  return path.join(__dirname, "templates");
+}
+
+/**
+ * Load a template file from the filesystem
+ */
+async function loadTemplateFile(filePath: string): Promise<string> {
+  try {
+    return await readFile(filePath, "utf8");
+  } catch (error) {
+    throw new Error(`Failed to load template file '${filePath}': ${(error as Error).message}`);
+  }
+}
 
 export function getSubagentRoot(vscodeCmd: string = "code"): string {
   return getDefaultSubagentRoot(vscodeCmd);
@@ -378,7 +401,17 @@ function createRequestPrompt(
   userQuery: string,
   responseFileTmp: string,
   responseFileFinal: string,
+  templateContent?: string,
 ): string {
+  if (templateContent) {
+    return renderTemplate(templateContent, {
+      userQuery,
+      responseFileTmp,
+      responseFileFinal,
+    });
+  }
+
+  // Backward compatibility: return hardcoded default template
   return `[[ ## system_instructions ## ]]
 
 **IMPORTANT**: Follow these exact steps:
@@ -400,7 +433,21 @@ Do not proceed to step 2 until your response is completely written to the tempor
 ${userQuery}`;
 }
 
-function createBatchRequestPrompt(userQuery: string, responseFileTmp: string, responseFileFinal: string): string {
+function createBatchRequestPrompt(
+  userQuery: string,
+  responseFileTmp: string,
+  responseFileFinal: string,
+  templateContent?: string,
+): string {
+  if (templateContent) {
+    return renderTemplate(templateContent, {
+      userQuery,
+      responseFileTmp,
+      responseFileFinal,
+    });
+  }
+
+  // Backward compatibility: return hardcoded default template
   return `[[ ## system_instructions ## ]]
 
 **IMPORTANT**: Follow these exact steps:
@@ -420,12 +467,21 @@ ${userQuery}`;
 function createBatchOrchestratorPrompt(
   requestFiles: readonly string[],
   responseFiles: readonly string[],
+  templateContent?: string,
 ): string {
   const requestLines = requestFiles
     .map((file, index) => `${index + 1}. messages/${path.basename(file)}`)
     .join("\n");
   const responseList = responseFiles.map((file) => `"${path.basename(file)}"`).join(", ");
 
+  if (templateContent) {
+    return renderTemplate(templateContent, {
+      requestFiles: requestLines,
+      responseList,
+    });
+  }
+
+  // Backward compatibility: return hardcoded default template
   return `MANDATORY: Run #runSubagent tool in your Available Actions for each request file to process them in isolated contexts.
 DO NOT read the request files yourself - only pass the file paths to each subagent:
 
@@ -529,6 +585,7 @@ async function launchVsCodeWithBatchChat(
 export interface DispatchOptions {
   userQuery: string;
   promptFile?: string;
+  requestTemplate?: string;
   extraAttachments?: readonly string[];
   workspaceTemplate?: string;
   dryRun?: boolean;
@@ -555,6 +612,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
   const {
     userQuery,
     promptFile,
+    requestTemplate,
     extraAttachments,
     workspaceTemplate,
     dryRun = false,
@@ -566,6 +624,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
 
   try {
     const resolvedPrompt = await resolvePromptFile(promptFile);
+    const templateContent = requestTemplate ? await loadTemplateFile(path.resolve(requestTemplate)) : undefined;
 
     const subagentRootPath = subagentRoot ?? getSubagentRoot(vscodeCmd);
     const subagentDir = await findUnlockedSubagent(subagentRootPath);
@@ -595,7 +654,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
     const responseFileTmp = path.join(messagesDir, `${timestamp}_res.tmp.md`);
     const responseFileFinal = path.join(messagesDir, `${timestamp}_res.md`);
 
-    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal);
+    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal, templateContent);
 
     process.stdout.write(
       `${JSON.stringify({ success: true, subagent_name: path.basename(subagentDir), response_file: responseFileFinal })}\n`,
@@ -654,6 +713,7 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
   const {
     userQuery,
     promptFile,
+    requestTemplate,
     extraAttachments,
     workspaceTemplate,
     dryRun = false,
@@ -667,6 +727,16 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
     let resolvedPrompt: string | undefined;
     try {
       resolvedPrompt = await resolvePromptFile(promptFile);
+    } catch (error) {
+      return {
+        exitCode: 1,
+        error: (error as Error).message,
+      };
+    }
+
+    let templateContent: string | undefined;
+    try {
+      templateContent = requestTemplate ? await loadTemplateFile(path.resolve(requestTemplate)) : undefined;
     } catch (error) {
       return {
         exitCode: 1,
@@ -711,7 +781,7 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
     const responseFileTmp = path.join(messagesDir, `${timestamp}_res.tmp.md`);
     const responseFileFinal = path.join(messagesDir, `${timestamp}_res.md`);
 
-    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal);
+    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal, templateContent);
 
     if (dryRun) {
       return {
@@ -781,6 +851,7 @@ export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise
   const {
     userQueries,
     promptFile,
+    requestTemplate,
     extraAttachments,
     workspaceTemplate,
     dryRun = false,
@@ -816,6 +887,25 @@ export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise
         error: (error as Error).message,
       };
     }
+
+    let batchRequestTemplateContent: string | undefined;
+    try {
+      if (requestTemplate) {
+        const resolvedTemplate = path.resolve(requestTemplate);
+        batchRequestTemplateContent = await loadTemplateFile(resolvedTemplate);
+      }
+    } catch (error) {
+      return {
+        exitCode: 1,
+        requestFiles,
+        queryCount,
+        error: (error as Error).message,
+      };
+    }
+    
+    // Orchestrator uses default template since it has different variables (requestFiles, responseList)
+    // vs batch request template (userQuery, responseFileTmp, responseFileFinal)
+    const orchestratorTemplateContent: string | undefined = undefined;
 
     const subagentRootPath = subagentRoot ?? getSubagentRoot(vscodeCmd);
     const subagentDir = await findUnlockedSubagent(subagentRootPath);
@@ -868,13 +958,13 @@ export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise
         userQueries.map((query, index) =>
           writeFile(
             requestFiles[index],
-            createBatchRequestPrompt(query, responseTmpFiles[index], responseFilesFinal[index]),
+            createBatchRequestPrompt(query, responseTmpFiles[index], responseFilesFinal[index], batchRequestTemplateContent),
             { encoding: "utf8" },
           ),
         ),
       );
 
-      const orchestratorContent = createBatchOrchestratorPrompt(requestFiles, responseFilesFinal);
+      const orchestratorContent = createBatchOrchestratorPrompt(requestFiles, responseFilesFinal, orchestratorTemplateContent);
       await writeFile(orchestratorFile, orchestratorContent, { encoding: "utf8" });
     }
 
