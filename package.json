@@ -33,7 +33,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "prepublishOnly": "pnpm build && pnpm test",
-    "version:bump": "pnpm version"
+    "version:bump": "pnpm version --message 'chore: bump v%s'"
   },
   "keywords": [
     "cli",
