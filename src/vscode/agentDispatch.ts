@@ -20,6 +20,9 @@ import {
 } from "./vscodeProcess.js";
 import {
   loadTemplateFile,
+  loadDefaultRequestTemplate,
+  loadDefaultBatchRequestTemplate,
+  loadDefaultBatchOrchestratorTemplate,
   createRequestPrompt,
   createBatchRequestPrompt,
   createBatchOrchestratorPrompt,
@@ -109,7 +112,9 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
 
   try {
     const resolvedPrompt = await resolvePromptFile(promptFile);
-    const templateContent = requestTemplate ? await loadTemplateFile(path.resolve(requestTemplate)) : undefined;
+    const templateContent = requestTemplate 
+      ? await loadTemplateFile(path.resolve(requestTemplate)) 
+      : await loadDefaultRequestTemplate();
 
     const subagentRootPath = subagentRoot ?? getSubagentRoot(vscodeCmd);
     const subagentDir = await findUnlockedSubagent(subagentRootPath);
@@ -219,9 +224,11 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
       };
     }
 
-    let templateContent: string | undefined;
+    let templateContent: string;
     try {
-      templateContent = requestTemplate ? await loadTemplateFile(path.resolve(requestTemplate)) : undefined;
+      templateContent = requestTemplate 
+        ? await loadTemplateFile(path.resolve(requestTemplate)) 
+        : await loadDefaultRequestTemplate();
     } catch (error) {
       return {
         exitCode: 1,
@@ -373,12 +380,11 @@ export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise
       };
     }
 
-    let batchRequestTemplateContent: string | undefined;
+    let batchRequestTemplateContent: string;
     try {
-      if (requestTemplate) {
-        const resolvedTemplate = path.resolve(requestTemplate);
-        batchRequestTemplateContent = await loadTemplateFile(resolvedTemplate);
-      }
+      batchRequestTemplateContent = requestTemplate
+        ? await loadTemplateFile(path.resolve(requestTemplate))
+        : await loadDefaultBatchRequestTemplate();
     } catch (error) {
       return {
         exitCode: 1,
@@ -388,9 +394,17 @@ export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise
       };
     }
     
-    // Orchestrator uses default template since it has different variables (requestFiles, responseList)
-    // vs batch request template (userQuery, responseFileTmp, responseFileFinal)
-    const orchestratorTemplateContent: string | undefined = undefined;
+    let orchestratorTemplateContent: string;
+    try {
+      orchestratorTemplateContent = await loadDefaultBatchOrchestratorTemplate();
+    } catch (error) {
+      return {
+        exitCode: 1,
+        requestFiles,
+        queryCount,
+        error: (error as Error).message,
+      };
+    }
 
     const subagentRootPath = subagentRoot ?? getSubagentRoot(vscodeCmd);
     const subagentDir = await findUnlockedSubagent(subagentRootPath);
