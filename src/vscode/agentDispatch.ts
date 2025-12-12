@@ -400,7 +400,7 @@ Do not proceed to step 2 until your response is completely written to the tempor
 ${userQuery}`;
 }
 
-function createBatchRequestPrompt(inputMessage: string, responseFileTmp: string, responseFileFinal: string): string {
+function createBatchRequestPrompt(userQuery: string, responseFileTmp: string, responseFileFinal: string): string {
   return `[[ ## system_instructions ## ]]
 
 **IMPORTANT**: Follow these exact steps:
@@ -414,7 +414,7 @@ function createBatchRequestPrompt(inputMessage: string, responseFileTmp: string,
 
 [[ ## task ## ]]
 
-${inputMessage}`;
+${userQuery}`;
 }
 
 function createBatchOrchestratorPrompt(
