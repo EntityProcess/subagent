@@ -379,33 +379,42 @@ function createRequestPrompt(
   responseFileTmp: string,
   responseFileFinal: string,
 ): string {
-  return `[[ ## task ## ]]
-
-${userQuery}
-
-[[ ## system_instructions ## ]]
+  return `[[ ## system_instructions ## ]]
 
 **IMPORTANT**: Follow these exact steps:
-1. Create and write your complete response to: ${responseFileTmp}
-2. When completely finished, run these PowerShell commands to signal completion:
+1. Do NOT create any additional output files in the workspace.
+2. Create and write your complete response to: ${responseFileTmp}
+3. All intended file outputs/changes MUST be returned INLINE in your response using \`<file path="..."> ... </file>\` tags. For each file, include either:
+	- the full final file content, OR
+	- a unified git diff (preferred when editing an existing file).
+4. When completely finished, run these PowerShell commands to signal completion:
 \`\`\`
 Move-Item -LiteralPath '${responseFileTmp}' -Destination '${responseFileFinal}'
 if (Test-Path subagent.lock) { del subagent.lock }
 \`\`\`
 
-Do not proceed to step 2 until your response is completely written to the temporary file.`;
+Do not proceed to step 2 until your response is completely written to the temporary file.
+
+[[ ## task ## ]]
+
+${userQuery}`;
 }
 
-function createBatchRequestPrompt(userQuery: string, responseFileTmp: string, responseFileFinal: string): string {
-  return `[[ ## task ## ]]
+function createBatchRequestPrompt(inputMessage: string, responseFileTmp: string, responseFileFinal: string): string {
+  return `[[ ## system_instructions ## ]]
 
-${userQuery}
+**IMPORTANT**: Follow these exact steps:
+1. Do NOT create any additional output files in the workspace.
+2. Create and write your complete response to: ${responseFileTmp}
+3. All intended file outputs/changes MUST be returned INLINE in your response using \`<file path="..."> ... </file>\` tags. For each file, include either:
+	- the full final file content, OR
+	- a unified git diff (preferred when editing an existing file).
+4. When completely finished and the response is stable, rename it to: ${responseFileFinal}
+5. Do not unlock the workspace from this request; batch orchestration will handle unlocking after all responses are ready.
 
-[[ ## system_instructions ## ]]
+[[ ## task ## ]]
 
-Write your complete response to: ${responseFileTmp}
-When completely finished and the response is stable, rename it to: ${responseFileFinal}
-Do not unlock the workspace from this request; batch orchestration will handle unlocking after all responses are ready.`;
+${inputMessage}`;
 }
 
 function createBatchOrchestratorPrompt(
