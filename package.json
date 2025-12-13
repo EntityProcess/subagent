@@ -32,6 +32,7 @@
     "test:all": "vitest run --config vitest.config.all.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "version:bump": "pnpm version patch",
     "prepublishOnly": "pnpm build && pnpm test"
   },
   "keywords": [
