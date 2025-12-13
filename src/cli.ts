@@ -134,6 +134,7 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
       return previous;
     })
     .option("--prompt <promptFile>", "Path to a prompt file to copy and attach")
+    .option("--request-template <file>", "Path to a custom request prompt template file")
     .option("--workspace-template <path>", "Path to a custom .code-workspace file to use as template")
     .option("-a, --attachment <path>", "Additional attachment to forward to the chat", (value: string, previous: string[] = []) => {
       previous.push(value);
@@ -155,6 +156,7 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
           const exitCode = await dispatchAgent({
             userQuery: queries[0],
             promptFile: options.prompt,
+            requestTemplate: options.requestTemplate,
             workspaceTemplate: options.workspaceTemplate,
             extraAttachments: options.attachment as string[] | undefined,
             dryRun: Boolean(options.dryRun),
@@ -169,6 +171,7 @@ function configureVsCodeCommands(parent: Command, vscodeCmd: string): void {
           const result = await dispatchBatchAgent({
             userQueries: queries,
             promptFile: options.prompt,
+            requestTemplate: options.requestTemplate,
             workspaceTemplate: options.workspaceTemplate,
             extraAttachments: options.attachment as string[] | undefined,
             dryRun: Boolean(options.dryRun),

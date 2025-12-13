@@ -1,6 +1,6 @@
 {
   "name": "subagent",
-  "version": "0.4.7",
+  "version": "0.5.0",
   "description": "CLI tool for managing workspace agents across VS Code",
   "type": "module",
   "bin": {
@@ -24,13 +24,16 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"const fs=require('fs'); const path=require('path'); const src='src/vscode/templates'; const dst='dist/vscode/templates'; fs.mkdirSync(dst,{recursive:true}); fs.readdirSync(src).forEach(f=>fs.copyFileSync(path.join(src,f),path.join(dst,f)))\"",
     "dev": "tsx src/cli.ts",
     "start": "node --enable-source-maps dist/cli.js",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.config.integration.ts",
+    "test:all": "vitest run --config vitest.config.all.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepublishOnly": "pnpm build && pnpm test"
+    "prepublishOnly": "pnpm build && pnpm test",
+    "version:bump": "pnpm version --message 'chore: bump v%s'"
   },
   "keywords": [
     "cli",
@@ -71,6 +74,8 @@
     "vitest": "^2.1.8"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

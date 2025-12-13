@@ -4,10 +4,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    // Run all tests including integration tests
     exclude: [
       "**/node_modules/**",
       "**/dist/**",
-      "**/*.integration.test.ts", // Exclude slow integration tests by default
     ],
     coverage: {
       provider: "v8",
