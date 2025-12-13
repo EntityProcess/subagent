@@ -5,8 +5,6 @@
 
 export const DEFAULT_REQUEST_TEMPLATE = `[[ ## system_instructions ## ]]
 
-[ ## system_instructions ## ]]
-
 **IMPORTANT**: Follow these exact steps:
 1. Create and write your complete response to: {{responseFileTmp}}
 2. When completely finished, run these PowerShell commands to signal completion:
