@@ -1,6 +1,6 @@
 {
   "name": "subagent",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "CLI tool for managing workspace agents across VS Code",
   "type": "module",
   "bin": {
