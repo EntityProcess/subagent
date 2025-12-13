@@ -1,17 +1,12 @@
 import { readFile } from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
 
 import { renderTemplate } from "../utils/template.js";
-
-/**
- * Get the default templates directory path
- */
-export function getTemplatesDir(): string {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  return path.join(__dirname, "templates");
-}
+import {
+  DEFAULT_REQUEST_TEMPLATE,
+  DEFAULT_BATCH_REQUEST_TEMPLATE,
+  DEFAULT_BATCH_ORCHESTRATOR_TEMPLATE,
+} from "./templates.js";
 
 /**
  * Load a template file from the filesystem
@@ -27,25 +22,22 @@ export async function loadTemplateFile(filePath: string): Promise<string> {
 /**
  * Load the default request prompt template
  */
-export async function loadDefaultRequestTemplate(): Promise<string> {
-  const templatesDir = getTemplatesDir();
-  return loadTemplateFile(path.join(templatesDir, "request-prompt.md"));
+export function loadDefaultRequestTemplate(): string {
+  return DEFAULT_REQUEST_TEMPLATE;
 }
 
 /**
  * Load the default batch request prompt template
  */
-export async function loadDefaultBatchRequestTemplate(): Promise<string> {
-  const templatesDir = getTemplatesDir();
-  return loadTemplateFile(path.join(templatesDir, "batch-request-prompt.md"));
+export function loadDefaultBatchRequestTemplate(): string {
+  return DEFAULT_BATCH_REQUEST_TEMPLATE;
 }
 
 /**
  * Load the default batch orchestrator prompt template
  */
-export async function loadDefaultBatchOrchestratorTemplate(): Promise<string> {
-  const templatesDir = getTemplatesDir();
-  return loadTemplateFile(path.join(templatesDir, "batch-orchestrator-prompt.md"));
+export function loadDefaultBatchOrchestratorTemplate(): string {
+  return DEFAULT_BATCH_ORCHESTRATOR_TEMPLATE;
 }
 
 /**
