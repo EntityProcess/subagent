@@ -1,6 +1,6 @@
 {
   "name": "subagent",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "CLI tool for managing workspace agents across VS Code",
   "type": "module",
   "bin": {
@@ -32,8 +32,7 @@
     "test:all": "vitest run --config vitest.config.all.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepublishOnly": "pnpm build && pnpm test",
-    "version:bump": "pnpm version --message 'chore: bump v%s'"
+    "prepublishOnly": "pnpm build && pnpm test"
   },
   "keywords": [
     "cli",

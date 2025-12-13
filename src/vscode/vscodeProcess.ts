@@ -5,6 +5,7 @@ import { promisify } from "util";
 
 import { DEFAULT_ALIVE_FILENAME } from "./constants.js";
 import { pathExists, removeIfExists } from "../utils/fs.js";
+import { pathToFileUri } from "../utils/path.js";
 import { sleep } from "../utils/time.js";
 
 const execAsync = promisify(exec);
@@ -99,12 +100,13 @@ export async function launchVsCodeWithChat(
     const reqFile = path.join(messagesDir, `${timestamp}_req.md`);
     await writeFile(reqFile, requestInstructions, { encoding: "utf8" });
 
+    const reqUri = pathToFileUri(reqFile);
     const chatArgs = ["-r", "chat", "-m", chatId];
     for (const attachment of attachmentPaths) {
       chatArgs.push("-a", attachment);
     }
     chatArgs.push("-a", reqFile);
-    chatArgs.push(`Follow instructions in ${path.basename(reqFile)}`);
+    chatArgs.push(`Follow instructions in [${path.basename(reqFile)}](${reqUri})`);
 
     const workspaceReady = await ensureWorkspaceFocused(
       workspacePath,
