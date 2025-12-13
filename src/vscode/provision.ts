@@ -1,10 +1,8 @@
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
-import {
-  DEFAULT_LOCK_NAME,
-} from "./constants.js";
-import { ensureDir, isDirectory, pathExists, readDirEntries, removeIfExists } from "../utils/fs.js";
+import { ensureDir, isDirectory, pathExists, readDirEntries, removeIfExists } from '../utils/fs.js';
+import { DEFAULT_LOCK_NAME } from './constants.js';
 
 /**
  * Default workspace template content
@@ -12,12 +10,12 @@ import { ensureDir, isDirectory, pathExists, readDirEntries, removeIfExists } fr
 const DEFAULT_WORKSPACE_TEMPLATE = {
   folders: [
     {
-      path: ".",
+      path: '.',
     },
   ],
   settings: {
-    "chat.modeFilesLocations": {
-      ".github/agents/**/*.md": true,
+    'chat.modeFilesLocations': {
+      '.github/agents/**/*.md': true,
     },
   },
 };
@@ -55,11 +53,11 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
     force = false,
     dryRun = false,
     workspaceTemplate = DEFAULT_WORKSPACE_TEMPLATE,
-    wakeupContent = DEFAULT_WAKEUP_CONTENT
+    wakeupContent = DEFAULT_WAKEUP_CONTENT,
   } = options;
 
   if (!Number.isInteger(subagents) || subagents < 1) {
-    throw new Error("subagents must be a positive integer");
+    throw new Error('subagents must be a positive integer');
   }
 
   const targetPath = path.resolve(targetRoot);
@@ -75,11 +73,12 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
   if (await pathExists(targetPath)) {
     const entries = await readDirEntries(targetPath);
     for (const entry of entries) {
-      if (!entry.isDirectory || !entry.name.startsWith("subagent-")) {
+      if (!entry.isDirectory || !entry.name.startsWith('subagent-')) {
         continue;
       }
 
-      const suffix = entry.name.split("-")[1];
+      const suffix = entry.name.split('-')[1];
+      if (!suffix) continue;
       const parsed = Number.parseInt(suffix, 10);
       if (!Number.isInteger(parsed)) {
         continue;
@@ -109,11 +108,11 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
     }
 
     const subagentDir = subagent.absolutePath;
-    const githubAgentsDir = path.join(subagentDir, ".github", "agents");
+    const githubAgentsDir = path.join(subagentDir, '.github', 'agents');
     const lockFile = path.join(subagentDir, lockName);
     const workspaceDst = path.join(subagentDir, `${path.basename(subagentDir)}.code-workspace`);
-    const wakeupDst = path.join(githubAgentsDir, "wakeup.md");
-    const subagentDst = path.join(githubAgentsDir, "subagent.md");
+    const wakeupDst = path.join(githubAgentsDir, 'wakeup.md');
+    const subagentDst = path.join(githubAgentsDir, 'subagent.md');
 
     const isLocked = await pathExists(lockFile);
     if (isLocked && !force) {
@@ -124,8 +123,8 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
       if (!dryRun) {
         await removeIfExists(lockFile);
         await ensureDir(githubAgentsDir);
-        await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), "utf8");
-        await writeFile(wakeupDst, wakeupContent, "utf8");
+        await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), 'utf8');
+        await writeFile(wakeupDst, wakeupContent, 'utf8');
       }
       created.push(subagentDir);
       lockedSubagents.delete(subagentDir);
@@ -137,8 +136,8 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
     if (!isLocked && force) {
       if (!dryRun) {
         await ensureDir(githubAgentsDir);
-        await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), "utf8");
-        await writeFile(wakeupDst, wakeupContent, "utf8");
+        await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), 'utf8');
+        await writeFile(wakeupDst, wakeupContent, 'utf8');
       }
       created.push(subagentDir);
       subagentsProvisioned += 1;
@@ -147,8 +146,8 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
 
     if (!dryRun && !(await pathExists(workspaceDst))) {
       await ensureDir(githubAgentsDir);
-      await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), "utf8");
-      await writeFile(wakeupDst, wakeupContent, "utf8");
+      await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), 'utf8');
+      await writeFile(wakeupDst, wakeupContent, 'utf8');
     }
 
     skippedExisting.push(subagentDir);
@@ -159,16 +158,16 @@ export async function provisionSubagents(options: ProvisionOptions): Promise<Pro
   while (subagentsProvisioned < subagents) {
     nextIndex += 1;
     const subagentDir = path.join(targetPath, `subagent-${nextIndex}`);
-    const githubAgentsDir = path.join(subagentDir, ".github", "agents");
+    const githubAgentsDir = path.join(subagentDir, '.github', 'agents');
     const workspaceDst = path.join(subagentDir, `${path.basename(subagentDir)}.code-workspace`);
-    const wakeupDst = path.join(githubAgentsDir, "wakeup.md");
-    const subagentDst = path.join(githubAgentsDir, "subagent.md");
+    const wakeupDst = path.join(githubAgentsDir, 'wakeup.md');
+    const subagentDst = path.join(githubAgentsDir, 'subagent.md');
 
     if (!dryRun) {
       await ensureDir(subagentDir);
       await ensureDir(githubAgentsDir);
-      await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), "utf8");
-      await writeFile(wakeupDst, wakeupContent, "utf8");
+      await writeFile(workspaceDst, JSON.stringify(workspaceTemplate, null, 2), 'utf8');
+      await writeFile(wakeupDst, wakeupContent, 'utf8');
     }
 
     created.push(subagentDir);
@@ -191,10 +190,16 @@ export interface UnlockOptions {
 }
 
 export async function unlockSubagents(options: UnlockOptions): Promise<string[]> {
-  const { targetRoot, lockName = DEFAULT_LOCK_NAME, subagentName, unlockAll = false, dryRun = false } = options;
+  const {
+    targetRoot,
+    lockName = DEFAULT_LOCK_NAME,
+    subagentName,
+    unlockAll = false,
+    dryRun = false,
+  } = options;
 
   if ((subagentName === undefined && !unlockAll) || (subagentName !== undefined && unlockAll)) {
-    throw new Error("must specify either --subagent or --all (but not both)");
+    throw new Error('must specify either --subagent or --all (but not both)');
   }
 
   const targetPath = path.resolve(targetRoot);
@@ -207,10 +212,10 @@ export async function unlockSubagents(options: UnlockOptions): Promise<string[]>
   if (unlockAll) {
     const entries = await readDirEntries(targetPath);
     const candidates = entries
-      .filter((entry) => entry.isDirectory && entry.name.startsWith("subagent-"))
+      .filter((entry) => entry.isDirectory && entry.name.startsWith('subagent-'))
       .map((entry) => ({
         absolutePath: entry.absolutePath,
-        number: Number.parseInt(entry.name.split("-")[1] ?? "", 10),
+        number: Number.parseInt(entry.name.split('-')[1] ?? '', 10),
       }))
       .filter((entry) => Number.isInteger(entry.number))
       .sort((a, b) => a.number - b.number);

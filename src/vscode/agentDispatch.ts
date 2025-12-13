@@ -1,39 +1,36 @@
-import { mkdir, stat, writeFile } from "fs/promises";
-import path from "path";
+import { mkdir, stat, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
-import { pathExists } from "../utils/fs.js";
-import { pathToFileUri } from "../utils/path.js";
+import { pathExists } from '../utils/fs.js';
+import { pathToFileUri } from '../utils/path.js';
 import {
-  getSubagentRoot,
-  findUnlockedSubagent,
-  prepareSubagentDirectory,
-  removeSubagentLock,
-  listSubagents,
-  warmupSubagents,
-  getAllSubagentWorkspaces,
+  createBatchOrchestratorPrompt,
+  createBatchRequestPrompt,
+  createRequestPrompt,
+  loadDefaultBatchOrchestratorTemplate,
+  loadDefaultBatchRequestTemplate,
+  loadDefaultRequestTemplate,
+  loadTemplateFile,
+} from './promptBuilder.js';
+import { waitForBatchResponses, waitForResponseOutput } from './responseWaiter.js';
+import { launchVsCodeWithBatchChat, launchVsCodeWithChat } from './vscodeProcess.js';
+import {
   type ListOptions,
   type WarmupOptions,
-} from "./workspaceManager.js";
-import {
-  launchVsCodeWithChat,
-  launchVsCodeWithBatchChat,
-} from "./vscodeProcess.js";
-import {
-  loadTemplateFile,
-  loadDefaultRequestTemplate,
-  loadDefaultBatchRequestTemplate,
-  loadDefaultBatchOrchestratorTemplate,
-  createRequestPrompt,
-  createBatchRequestPrompt,
-  createBatchOrchestratorPrompt,
-} from "./promptBuilder.js";
-import {
-  waitForResponseOutput,
-  waitForBatchResponses,
-} from "./responseWaiter.js";
+  findUnlockedSubagent,
+  getAllSubagentWorkspaces,
+  getSubagentRoot,
+  listSubagents,
+  prepareSubagentDirectory,
+  removeSubagentLock,
+  warmupSubagents,
+} from './workspaceManager.js';
 
 function generateTimestamp(): string {
-  return new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+  return new Date()
+    .toISOString()
+    .replace(/[-:TZ.]/g, '')
+    .slice(0, 14);
 }
 
 async function resolvePromptFile(promptFile: string | undefined): Promise<string | undefined> {
@@ -54,7 +51,9 @@ async function resolvePromptFile(promptFile: string | undefined): Promise<string
   return resolvedPrompt;
 }
 
-async function resolveAttachments(extraAttachments: readonly string[] | undefined): Promise<string[]> {
+async function resolveAttachments(
+  extraAttachments: readonly string[] | undefined,
+): Promise<string[]> {
   if (!extraAttachments) {
     return [];
   }
@@ -83,7 +82,7 @@ export interface DispatchOptions {
   silent?: boolean;
 }
 
-export interface BatchDispatchOptions extends Omit<DispatchOptions, "userQuery"> {
+export interface BatchDispatchOptions extends Omit<DispatchOptions, 'userQuery'> {
   userQueries: string[];
 }
 
@@ -105,15 +104,15 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
     workspaceTemplate,
     dryRun = false,
     wait = false,
-    vscodeCmd = "code",
+    vscodeCmd = 'code',
     subagentRoot,
     silent = false,
   } = options;
 
   try {
     const resolvedPrompt = await resolvePromptFile(promptFile);
-    const templateContent = requestTemplate 
-      ? await loadTemplateFile(path.resolve(requestTemplate)) 
+    const templateContent = requestTemplate
+      ? await loadTemplateFile(path.resolve(requestTemplate))
       : loadDefaultRequestTemplate();
 
     const subagentRootPath = subagentRoot ?? getSubagentRoot(vscodeCmd);
@@ -121,7 +120,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
     if (!subagentDir) {
       if (!silent) {
         console.error(
-          "error: No unlocked subagents available. Provision additional subagents with:\n  subagent code provision --subagents <desired_total>",
+          'error: No unlocked subagents available. Provision additional subagents with:\n  subagent code provision --subagents <desired_total>',
         );
       }
       return 1;
@@ -132,7 +131,13 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
     }
 
     const chatId = Math.random().toString(16).slice(2, 10);
-    const preparationResult = await prepareSubagentDirectory(subagentDir, resolvedPrompt, chatId, workspaceTemplate, dryRun);
+    const preparationResult = await prepareSubagentDirectory(
+      subagentDir,
+      resolvedPrompt,
+      chatId,
+      workspaceTemplate,
+      dryRun,
+    );
     if (preparationResult !== 0) {
       return preparationResult;
     }
@@ -140,11 +145,16 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
     const attachments = await resolveAttachments(extraAttachments);
 
     const timestamp = generateTimestamp();
-    const messagesDir = path.join(subagentDir, "messages");
+    const messagesDir = path.join(subagentDir, 'messages');
     const responseFileTmp = path.join(messagesDir, `${timestamp}_res.tmp.md`);
     const responseFileFinal = path.join(messagesDir, `${timestamp}_res.md`);
 
-    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal, templateContent);
+    const requestInstructions = createRequestPrompt(
+      userQuery,
+      responseFileTmp,
+      responseFileFinal,
+      templateContent,
+    );
 
     process.stdout.write(
       `${JSON.stringify({ success: true, subagent_name: path.basename(subagentDir), response_file: responseFileFinal })}\n`,
@@ -154,7 +164,14 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
       return 0;
     }
 
-    const launchSuccess = await launchVsCodeWithChat(subagentDir, chatId, attachments, requestInstructions, timestamp, vscodeCmd);
+    const launchSuccess = await launchVsCodeWithChat(
+      subagentDir,
+      chatId,
+      attachments,
+      requestInstructions,
+      timestamp,
+      vscodeCmd,
+    );
     if (!launchSuccess) {
       return 1;
     }
@@ -163,7 +180,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
       process.stdout.write(
         `${JSON.stringify({
           subagent: path.basename(subagentDir),
-          status: "dispatched",
+          status: 'dispatched',
           response_file: responseFileFinal,
           temp_file: responseFileTmp,
         })}\n`,
@@ -186,7 +203,9 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
     await removeSubagentLock(subagentDir);
     return 0;
   } catch (error) {
-    process.stdout.write(`${JSON.stringify({ success: false, error: (error as Error).message })}\n`);
+    process.stdout.write(
+      `${JSON.stringify({ success: false, error: (error as Error).message })}\n`,
+    );
     return 1;
   }
 }
@@ -199,7 +218,9 @@ export interface DispatchSessionResult {
   readonly error?: string;
 }
 
-export async function dispatchAgentSession(options: DispatchOptions): Promise<DispatchSessionResult> {
+export async function dispatchAgentSession(
+  options: DispatchOptions,
+): Promise<DispatchSessionResult> {
   const {
     userQuery,
     promptFile,
@@ -208,7 +229,7 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
     workspaceTemplate,
     dryRun = false,
     wait = true,
-    vscodeCmd = "code",
+    vscodeCmd = 'code',
     subagentRoot,
     silent = false,
   } = options;
@@ -226,8 +247,8 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
 
     let templateContent: string;
     try {
-      templateContent = requestTemplate 
-        ? await loadTemplateFile(path.resolve(requestTemplate)) 
+      templateContent = requestTemplate
+        ? await loadTemplateFile(path.resolve(requestTemplate))
         : loadDefaultRequestTemplate();
     } catch (error) {
       return {
@@ -242,18 +263,24 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
       return {
         exitCode: 1,
         error:
-          "No unlocked subagents available. Provision additional subagents with: subagent code provision --subagents <desired_total>",
+          'No unlocked subagents available. Provision additional subagents with: subagent code provision --subagents <desired_total>',
       };
     }
 
     const subagentName = path.basename(subagentDir);
     const chatId = Math.random().toString(16).slice(2, 10);
-    const preparationResult = await prepareSubagentDirectory(subagentDir, resolvedPrompt, chatId, workspaceTemplate, dryRun);
+    const preparationResult = await prepareSubagentDirectory(
+      subagentDir,
+      resolvedPrompt,
+      chatId,
+      workspaceTemplate,
+      dryRun,
+    );
     if (preparationResult !== 0) {
       return {
         exitCode: preparationResult,
         subagentName,
-        error: "Failed to prepare subagent workspace",
+        error: 'Failed to prepare subagent workspace',
       };
     }
 
@@ -269,11 +296,16 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
     }
 
     const timestamp = generateTimestamp();
-    const messagesDir = path.join(subagentDir, "messages");
+    const messagesDir = path.join(subagentDir, 'messages');
     const responseFileTmp = path.join(messagesDir, `${timestamp}_res.tmp.md`);
     const responseFileFinal = path.join(messagesDir, `${timestamp}_res.md`);
 
-    const requestInstructions = createRequestPrompt(userQuery, responseFileTmp, responseFileFinal, templateContent);
+    const requestInstructions = createRequestPrompt(
+      userQuery,
+      responseFileTmp,
+      responseFileFinal,
+      templateContent,
+    );
 
     if (dryRun) {
       return {
@@ -299,7 +331,7 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
         subagentName,
         responseFile: responseFileFinal,
         tempFile: responseFileTmp,
-        error: "Failed to launch VS Code for subagent session",
+        error: 'Failed to launch VS Code for subagent session',
       };
     }
 
@@ -319,7 +351,7 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
         subagentName,
         responseFile: responseFileFinal,
         tempFile: responseFileTmp,
-        error: "Timed out waiting for agent response",
+        error: 'Timed out waiting for agent response',
       };
     }
 
@@ -339,7 +371,9 @@ export async function dispatchAgentSession(options: DispatchOptions): Promise<Di
   }
 }
 
-export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise<BatchDispatchResult> {
+export async function dispatchBatchAgent(
+  options: BatchDispatchOptions,
+): Promise<BatchDispatchResult> {
   const {
     userQueries,
     promptFile,
@@ -348,7 +382,7 @@ export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise
     workspaceTemplate,
     dryRun = false,
     wait = false,
-    vscodeCmd = "code",
+    vscodeCmd = 'code',
     subagentRoot,
     silent = false,
   } = options;
@@ -358,7 +392,7 @@ export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise
       exitCode: 1,
       requestFiles: [],
       queryCount: 0,
-      error: "At least one query is required for batch dispatch",
+      error: 'At least one query is required for batch dispatch',
     };
   }
 
@@ -393,7 +427,7 @@ export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise
         error: (error as Error).message,
       };
     }
-    
+
     const orchestratorTemplateContent = loadDefaultBatchOrchestratorTemplate();
 
     const subagentRootPath = subagentRoot ?? getSubagentRoot(vscodeCmd);
@@ -404,20 +438,26 @@ export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise
         requestFiles,
         queryCount,
         error:
-          "No unlocked subagents available. Provision additional subagents with: subagent code provision --subagents <desired_total>",
+          'No unlocked subagents available. Provision additional subagents with: subagent code provision --subagents <desired_total>',
       };
     }
 
     subagentName = path.basename(subagentDir);
     const chatId = Math.random().toString(16).slice(2, 10);
-    const preparationResult = await prepareSubagentDirectory(subagentDir, resolvedPrompt, chatId, workspaceTemplate, dryRun);
+    const preparationResult = await prepareSubagentDirectory(
+      subagentDir,
+      resolvedPrompt,
+      chatId,
+      workspaceTemplate,
+      dryRun,
+    );
     if (preparationResult !== 0) {
       return {
         exitCode: preparationResult,
         subagentName,
         requestFiles,
         queryCount,
-        error: "Failed to prepare subagent workspace",
+        error: 'Failed to prepare subagent workspace',
       };
     }
 
@@ -435,32 +475,46 @@ export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise
     }
 
     const timestamp = generateTimestamp();
-    const messagesDir = path.join(subagentDir, "messages");
+    const messagesDir = path.join(subagentDir, 'messages');
 
-    requestFiles = userQueries.map((_, index) => path.join(messagesDir, `${timestamp}_${index}_req.md`));
-    const responseTmpFiles = userQueries.map((_, index) => path.join(messagesDir, `${timestamp}_${index}_res.tmp.md`));
-    responseFilesFinal = userQueries.map((_, index) => path.join(messagesDir, `${timestamp}_${index}_res.md`));
+    requestFiles = userQueries.map((_, index) =>
+      path.join(messagesDir, `${timestamp}_${index}_req.md`),
+    );
+    const responseTmpFiles = userQueries.map((_, index) =>
+      path.join(messagesDir, `${timestamp}_${index}_res.tmp.md`),
+    );
+    responseFilesFinal = userQueries.map((_, index) =>
+      path.join(messagesDir, `${timestamp}_${index}_res.md`),
+    );
     const orchestratorFile = path.join(messagesDir, `${timestamp}_orchestrator.md`);
 
     if (!dryRun) {
       await Promise.all(
         userQueries.map((query, index) =>
           writeFile(
-            requestFiles[index],
-            createBatchRequestPrompt(query, responseTmpFiles[index], responseFilesFinal[index], batchRequestTemplateContent),
-            { encoding: "utf8" },
+            requestFiles[index]!,
+            createBatchRequestPrompt(
+              query,
+              responseTmpFiles[index]!,
+              responseFilesFinal[index]!,
+              batchRequestTemplateContent,
+            ),
+            { encoding: 'utf8' },
           ),
         ),
       );
 
-      const orchestratorContent = createBatchOrchestratorPrompt(requestFiles, responseFilesFinal, orchestratorTemplateContent);
-      await writeFile(orchestratorFile, orchestratorContent, { encoding: "utf8" });
+      const orchestratorContent = createBatchOrchestratorPrompt(
+        requestFiles,
+        responseFilesFinal,
+        orchestratorTemplateContent,
+      );
+      await writeFile(orchestratorFile, orchestratorContent, { encoding: 'utf8' });
     }
 
     const chatAttachments = [orchestratorFile, ...attachments];
     const orchestratorUri = pathToFileUri(orchestratorFile);
-    const chatInstruction =
-      `Follow instructions in [${timestamp}_orchestrator.md](${orchestratorUri}). Use #runSubagent tool.`;
+    const chatInstruction = `Follow instructions in [${timestamp}_orchestrator.md](${orchestratorUri}). Use #runSubagent tool.`;
 
     if (dryRun) {
       return {
@@ -486,7 +540,7 @@ export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise
         subagentName,
         requestFiles,
         queryCount,
-        error: "Failed to launch VS Code for batch dispatch",
+        error: 'Failed to launch VS Code for batch dispatch',
       };
     }
 
@@ -507,7 +561,7 @@ export async function dispatchBatchAgent(options: BatchDispatchOptions): Promise
         requestFiles,
         responseFiles: responseFilesFinal,
         queryCount,
-        error: "Timed out waiting for batch responses",
+        error: 'Timed out waiting for batch responses',
       };
     }
 
@@ -541,4 +595,4 @@ export {
   warmupSubagents,
   type ListOptions,
   type WarmupOptions,
-} from "./workspaceManager.js";
+} from './workspaceManager.js';

@@ -1,34 +1,37 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdir, writeFile } from "fs/promises";
-import os from "os";
-import path from "path";
-import { provisionSubagents, unlockSubagents } from "../src/vscode/provision.js";
-import { DEFAULT_LOCK_NAME } from "../src/vscode/constants.js";
-import { pathExists, removeIfExists } from "../src/utils/fs.js";
+import { mkdir, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { pathExists, removeIfExists } from '../src/utils/fs.js';
+import { DEFAULT_LOCK_NAME } from '../src/vscode/constants.js';
+import { provisionSubagents, unlockSubagents } from '../src/vscode/provision.js';
 
-describe("provision", () => {
+describe('provision', () => {
   let tmpDir: string;
   let targetRoot: string;
 
   beforeEach(async () => {
     // Create temporary directory for tests
-    tmpDir = path.join(os.tmpdir(), `subagent-test-${Date.now()}-${Math.random().toString(36).substring(7)}`);
+    tmpDir = path.join(
+      os.tmpdir(),
+      `subagent-test-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+    );
     await mkdir(tmpDir, { recursive: true });
 
     // Create target root directory
-    targetRoot = path.join(tmpDir, "agents");
+    targetRoot = path.join(tmpDir, 'agents');
     await mkdir(targetRoot, { recursive: true });
   });
 
   afterEach(async () => {
     // Clean up temporary directory
     if (await pathExists(tmpDir)) {
-      const { rm } = await import("fs/promises");
+      const { rm } = await import('node:fs/promises');
       await rm(tmpDir, { recursive: true, force: true });
     }
   });
 
-  it("should provision a single subagent", async () => {
+  it('should provision a single subagent', async () => {
     const result = await provisionSubagents({
       targetRoot,
       subagents: 1,
@@ -41,12 +44,12 @@ describe("provision", () => {
     expect(result.skippedExisting).toHaveLength(0);
     expect(result.skippedLocked).toHaveLength(0);
 
-    const subagentDir = path.join(targetRoot, "subagent-1");
+    const subagentDir = path.join(targetRoot, 'subagent-1');
     expect(await pathExists(subagentDir)).toBe(true);
-    expect(await pathExists(path.join(subagentDir, "subagent-1.code-workspace"))).toBe(true);
+    expect(await pathExists(path.join(subagentDir, 'subagent-1.code-workspace'))).toBe(true);
   });
 
-  it("should provision multiple subagents", async () => {
+  it('should provision multiple subagents', async () => {
     const result = await provisionSubagents({
       targetRoot,
       subagents: 3,
@@ -65,7 +68,7 @@ describe("provision", () => {
     }
   });
 
-  it("should skip existing unlocked subagents", async () => {
+  it('should skip existing unlocked subagents', async () => {
     // Create initial subagent
     await provisionSubagents({
       targetRoot,
@@ -89,7 +92,7 @@ describe("provision", () => {
     expect(result.skippedLocked).toHaveLength(0);
   });
 
-  it("should skip locked subagents without force", async () => {
+  it('should skip locked subagents without force', async () => {
     // Create initial subagent
     await provisionSubagents({
       targetRoot,
@@ -100,8 +103,8 @@ describe("provision", () => {
     });
 
     // Create lock file
-    const lockFile = path.join(targetRoot, "subagent-1", DEFAULT_LOCK_NAME);
-    await writeFile(lockFile, "");
+    const lockFile = path.join(targetRoot, 'subagent-1', DEFAULT_LOCK_NAME);
+    await writeFile(lockFile, '');
 
     // Request 1 unlocked subagent - should create subagent-2
     const result = await provisionSubagents({
@@ -113,16 +116,16 @@ describe("provision", () => {
     });
 
     expect(result.created).toHaveLength(1);
-    expect(result.created[0]).toContain("subagent-2");
+    expect(result.created[0]).toContain('subagent-2');
     expect(result.skippedExisting).toHaveLength(0);
     expect(result.skippedLocked).toHaveLength(1);
 
     // Both should exist
-    expect(await pathExists(path.join(targetRoot, "subagent-1"))).toBe(true);
-    expect(await pathExists(path.join(targetRoot, "subagent-2"))).toBe(true);
+    expect(await pathExists(path.join(targetRoot, 'subagent-1'))).toBe(true);
+    expect(await pathExists(path.join(targetRoot, 'subagent-2'))).toBe(true);
   });
 
-  it("should overwrite unlocked subagents with force", async () => {
+  it('should overwrite unlocked subagents with force', async () => {
     // Create initial subagent
     await provisionSubagents({
       targetRoot,
@@ -133,8 +136,8 @@ describe("provision", () => {
     });
 
     // Add a marker file
-    const markerPath = path.join(targetRoot, "subagent-1", "marker.txt");
-    await writeFile(markerPath, "should remain");
+    const markerPath = path.join(targetRoot, 'subagent-1', 'marker.txt');
+    await writeFile(markerPath, 'should remain');
 
     // Provision with force
     const result = await provisionSubagents({
@@ -151,10 +154,12 @@ describe("provision", () => {
 
     // Marker file should remain (we don't delete files, just overwrite template)
     expect(await pathExists(markerPath)).toBe(true);
-    expect(await pathExists(path.join(targetRoot, "subagent-1", "subagent-1.code-workspace"))).toBe(true);
+    expect(await pathExists(path.join(targetRoot, 'subagent-1', 'subagent-1.code-workspace'))).toBe(
+      true,
+    );
   });
 
-  it("should unlock and overwrite locked subagents with force", async () => {
+  it('should unlock and overwrite locked subagents with force', async () => {
     // Create 2 initial subagents
     await provisionSubagents({
       targetRoot,
@@ -165,10 +170,10 @@ describe("provision", () => {
     });
 
     // Lock both subagents
-    const lockFile1 = path.join(targetRoot, "subagent-1", DEFAULT_LOCK_NAME);
-    const lockFile2 = path.join(targetRoot, "subagent-2", DEFAULT_LOCK_NAME);
-    await writeFile(lockFile1, "");
-    await writeFile(lockFile2, "");
+    const lockFile1 = path.join(targetRoot, 'subagent-1', DEFAULT_LOCK_NAME);
+    const lockFile2 = path.join(targetRoot, 'subagent-2', DEFAULT_LOCK_NAME);
+    await writeFile(lockFile1, '');
+    await writeFile(lockFile2, '');
 
     // Request 2 subagents with force
     const result = await provisionSubagents({
@@ -184,15 +189,15 @@ describe("provision", () => {
     expect(result.skippedLocked).toHaveLength(0);
 
     // Both should exist
-    expect(await pathExists(path.join(targetRoot, "subagent-1"))).toBe(true);
-    expect(await pathExists(path.join(targetRoot, "subagent-2"))).toBe(true);
+    expect(await pathExists(path.join(targetRoot, 'subagent-1'))).toBe(true);
+    expect(await pathExists(path.join(targetRoot, 'subagent-2'))).toBe(true);
 
     // Lock files should be removed
     expect(await pathExists(lockFile1)).toBe(false);
     expect(await pathExists(lockFile2)).toBe(false);
   });
 
-  it("should not create files during dry run", async () => {
+  it('should not create files during dry run', async () => {
     const result = await provisionSubagents({
       targetRoot,
       subagents: 2,
@@ -206,11 +211,11 @@ describe("provision", () => {
     expect(result.skippedLocked).toHaveLength(0);
 
     // Nothing should actually exist
-    expect(await pathExists(path.join(targetRoot, "subagent-1"))).toBe(false);
-    expect(await pathExists(path.join(targetRoot, "subagent-2"))).toBe(false);
+    expect(await pathExists(path.join(targetRoot, 'subagent-1'))).toBe(false);
+    expect(await pathExists(path.join(targetRoot, 'subagent-2'))).toBe(false);
   });
 
-  it("should throw error for zero subagents", async () => {
+  it('should throw error for zero subagents', async () => {
     await expect(
       provisionSubagents({
         targetRoot,
@@ -219,10 +224,10 @@ describe("provision", () => {
         force: false,
         dryRun: false,
       }),
-    ).rejects.toThrow("positive integer");
+    ).rejects.toThrow('positive integer');
   });
 
-  it("should provision additional subagents when existing ones are locked", async () => {
+  it('should provision additional subagents when existing ones are locked', async () => {
     // Create 2 initial subagents
     await provisionSubagents({
       targetRoot,
@@ -233,8 +238,8 @@ describe("provision", () => {
     });
 
     // Lock both subagents
-    await writeFile(path.join(targetRoot, "subagent-1", DEFAULT_LOCK_NAME), "");
-    await writeFile(path.join(targetRoot, "subagent-2", DEFAULT_LOCK_NAME), "");
+    await writeFile(path.join(targetRoot, 'subagent-1', DEFAULT_LOCK_NAME), '');
+    await writeFile(path.join(targetRoot, 'subagent-2', DEFAULT_LOCK_NAME), '');
 
     // Request 2 unlocked subagents
     const result = await provisionSubagents({
@@ -246,19 +251,19 @@ describe("provision", () => {
     });
 
     expect(result.created).toHaveLength(2);
-    expect(result.created.some((p) => p.includes("subagent-3"))).toBe(true);
-    expect(result.created.some((p) => p.includes("subagent-4"))).toBe(true);
+    expect(result.created.some((p) => p.includes('subagent-3'))).toBe(true);
+    expect(result.created.some((p) => p.includes('subagent-4'))).toBe(true);
     expect(result.skippedExisting).toHaveLength(0);
     expect(result.skippedLocked).toHaveLength(2);
 
     // All should exist
-    expect(await pathExists(path.join(targetRoot, "subagent-1"))).toBe(true);
-    expect(await pathExists(path.join(targetRoot, "subagent-2"))).toBe(true);
-    expect(await pathExists(path.join(targetRoot, "subagent-3"))).toBe(true);
-    expect(await pathExists(path.join(targetRoot, "subagent-4"))).toBe(true);
+    expect(await pathExists(path.join(targetRoot, 'subagent-1'))).toBe(true);
+    expect(await pathExists(path.join(targetRoot, 'subagent-2'))).toBe(true);
+    expect(await pathExists(path.join(targetRoot, 'subagent-3'))).toBe(true);
+    expect(await pathExists(path.join(targetRoot, 'subagent-4'))).toBe(true);
   });
 
-  it("should handle partial locked subagents", async () => {
+  it('should handle partial locked subagents', async () => {
     // Create 3 initial subagents
     await provisionSubagents({
       targetRoot,
@@ -269,8 +274,8 @@ describe("provision", () => {
     });
 
     // Lock subagent-1 and subagent-3, leave subagent-2 unlocked
-    await writeFile(path.join(targetRoot, "subagent-1", DEFAULT_LOCK_NAME), "");
-    await writeFile(path.join(targetRoot, "subagent-3", DEFAULT_LOCK_NAME), "");
+    await writeFile(path.join(targetRoot, 'subagent-1', DEFAULT_LOCK_NAME), '');
+    await writeFile(path.join(targetRoot, 'subagent-3', DEFAULT_LOCK_NAME), '');
 
     // Request 2 unlocked subagents
     const result = await provisionSubagents({
@@ -282,15 +287,15 @@ describe("provision", () => {
     });
 
     expect(result.created).toHaveLength(1);
-    expect(result.created[0]).toContain("subagent-4");
+    expect(result.created[0]).toContain('subagent-4');
     expect(result.skippedExisting).toHaveLength(1);
-    expect(result.skippedExisting[0]).toContain("subagent-2");
+    expect(result.skippedExisting[0]).toContain('subagent-2');
     expect(result.skippedLocked).toHaveLength(2);
 
-    expect(await pathExists(path.join(targetRoot, "subagent-4"))).toBe(true);
+    expect(await pathExists(path.join(targetRoot, 'subagent-4'))).toBe(true);
   });
 
-  it("should handle force with mixed locked and unlocked subagents", async () => {
+  it('should handle force with mixed locked and unlocked subagents', async () => {
     // Create 4 initial subagents
     await provisionSubagents({
       targetRoot,
@@ -301,10 +306,10 @@ describe("provision", () => {
     });
 
     // Lock subagent-1 and subagent-2, leave subagent-3 and subagent-4 unlocked
-    const lockFile1 = path.join(targetRoot, "subagent-1", DEFAULT_LOCK_NAME);
-    const lockFile2 = path.join(targetRoot, "subagent-2", DEFAULT_LOCK_NAME);
-    await writeFile(lockFile1, "");
-    await writeFile(lockFile2, "");
+    const lockFile1 = path.join(targetRoot, 'subagent-1', DEFAULT_LOCK_NAME);
+    const lockFile2 = path.join(targetRoot, 'subagent-2', DEFAULT_LOCK_NAME);
+    await writeFile(lockFile1, '');
+    await writeFile(lockFile2, '');
 
     // Request 2 subagents with force
     const result = await provisionSubagents({
@@ -320,12 +325,11 @@ describe("provision", () => {
     expect(result.skippedLocked).toHaveLength(0);
 
     // All should exist
-    expect(await pathExists(path.join(targetRoot, "subagent-1"))).toBe(true);
-    expect(await pathExists(path.join(targetRoot, "subagent-2"))).toBe(true);
+    expect(await pathExists(path.join(targetRoot, 'subagent-1'))).toBe(true);
+    expect(await pathExists(path.join(targetRoot, 'subagent-2'))).toBe(true);
 
     // Lock files should be removed
     expect(await pathExists(lockFile1)).toBe(false);
     expect(await pathExists(lockFile2)).toBe(false);
   });
 });
-

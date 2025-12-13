@@ -5,13 +5,13 @@ export type {
   DispatchSessionResult,
   ListOptions,
   WarmupOptions,
-} from "./vscode/agentDispatch.js";
+} from './vscode/agentDispatch.js';
 
 export type {
   ProvisionOptions,
   ProvisionResult,
   UnlockOptions,
-} from "./vscode/provision.js";
+} from './vscode/provision.js';
 
 export {
   dispatchAgent,
@@ -22,9 +22,9 @@ export {
   listSubagents,
   warmupSubagents,
   findUnlockedSubagent,
-} from "./vscode/agentDispatch.js";
+} from './vscode/agentDispatch.js';
 
 export {
   provisionSubagents,
   unlockSubagents,
-} from "./vscode/provision.js";
+} from './vscode/provision.js';

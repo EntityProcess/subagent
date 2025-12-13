@@ -1,19 +1,19 @@
-import { readFile } from "fs/promises";
-import path from "path";
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 
-import { renderTemplate } from "../utils/template.js";
+import { renderTemplate } from '../utils/template.js';
 import {
-  DEFAULT_REQUEST_TEMPLATE,
-  DEFAULT_BATCH_REQUEST_TEMPLATE,
   DEFAULT_BATCH_ORCHESTRATOR_TEMPLATE,
-} from "./templates.js";
+  DEFAULT_BATCH_REQUEST_TEMPLATE,
+  DEFAULT_REQUEST_TEMPLATE,
+} from './templates.js';
 
 /**
  * Load a template file from the filesystem
  */
 export async function loadTemplateFile(filePath: string): Promise<string> {
   try {
-    return await readFile(filePath, "utf8");
+    return await readFile(filePath, 'utf8');
   } catch (error) {
     throw new Error(`Failed to load template file '${filePath}': ${(error as Error).message}`);
   }
@@ -82,8 +82,8 @@ export function createBatchOrchestratorPrompt(
 ): string {
   const requestLines = requestFiles
     .map((file, index) => `${index + 1}. messages/${path.basename(file)}`)
-    .join("\n");
-  const responseList = responseFiles.map((file) => `"${path.basename(file)}"`).join(", ");
+    .join('\n');
+  const responseList = responseFiles.map((file) => `"${path.basename(file)}"`).join(', ');
 
   return renderTemplate(templateContent, {
     requestFiles: requestLines,

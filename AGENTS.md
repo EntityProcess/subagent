@@ -10,12 +10,18 @@ This is a TypeScript port of [subagent-py](https://github.com/christso/subagent-
 - `src/vscode/subagent_template/`: Template files copied into each provisioned subagent workspace
 
 ## Build, Test, and Development Commands
-- `pnpm install`: Install all dependencies
-- `pnpm build`: Compile TypeScript to JavaScript and copy template files to dist/
-- `pnpm dev -- <args>`: Run CLI directly from TypeScript source using tsx
-- `pnpm start -- <args>`: Run compiled JavaScript from dist/
-- `pnpm link --global`: Create global symlink for local testing
-- `pnpm test`: Run test suite (once tests are implemented)
+- `bun install`: Install all dependencies
+- `bun run build`: Compile TypeScript to JavaScript and copy template files to dist/
+- `bun run typecheck`: Verify TypeScript type safety
+- `bun run dev -- <args>`: Run CLI directly with hot reload
+- `bun run start -- <args>`: Run compiled JavaScript from dist/
+- `bun run lint`: Check code style with Biome
+- `bun run format`: Format code with Biome
+- `bun run fix`: Auto-fix linting and formatting issues
+- `bun test`: Run test suite
+- `bun test --watch`: Run tests in watch mode
+- `bun test --coverage`: Run tests with coverage report
+- `bun link`: Create global symlink for local testing
 
 ## Coding Style & Naming Conventions
 - Follow the TypeScript 5.x and ES2022 guidelines from `.github/instructions/typescript-5-es2022.instructions.md`
@@ -27,11 +33,11 @@ This is a TypeScript port of [subagent-py](https://github.com/christso/subagent-
 - When adding new CLI commands, register them in `cli.ts` with appropriate options and handlers
 
 ## Testing Guidelines
-- Use Vitest or Jest for testing framework (to be added)
+- Use Vitest for testing framework
 - Name test files `*.test.ts` or `*.spec.ts`
 - Structure tests alongside the modules they cover in a `tests/` or `__tests__/` directory
 - Mock file system operations and subprocess calls in tests
-- Ensure tests pass via `pnpm test` before opening a PR
+- Ensure tests pass via `bun test` before opening a PR
 
 ## Commit & Pull Request Guidelines
 - Write commits in the imperative mood (e.g., `Add Azure retry helper`)
@@ -45,11 +51,11 @@ This is a TypeScript port of [subagent-py](https://github.com/christso/subagent-
 - Template files in `src/vscode/subagent_template/` should remain generic and not contain user-specific data
 
 ## Dependencies & Package Management
-- Use pnpm for package management (pnpm 9+ recommended)
+- Use Bun for package management (Bun 1.3.3+)
 - Keep dependencies minimal and well-justified
 - Prefer stable, well-maintained packages
 - Document any platform-specific dependencies or requirements
-- pnpm provides faster installs, better disk space efficiency, and strict dependency resolution
+- Bun provides faster installs, better disk space efficiency, and built-in TypeScript support
 
 ## TypeScript Configuration
 - Target ES2022 for modern JavaScript features
@@ -57,6 +63,17 @@ This is a TypeScript port of [subagent-py](https://github.com/christso/subagent-
 - Module resolution: Node with ESM imports
 - Output directory: `dist/`
 - Include source maps for debugging
+
+## Quality Assurance Workflow
+
+After making any significant changes (refactoring, new features, bug fixes), always run the following verification steps in order:
+
+1. `bun run build` - Ensure code compiles without errors
+2. `bun run typecheck` - Verify TypeScript type safety
+3. `bun run lint` - Check code style and catch potential issues with Biome
+4. `bun test` - Run all tests to verify functionality
+
+Only consider the work complete when all four steps pass successfully. This ensures code quality, prevents regressions, and maintains the integrity of the codebase.
 
 ## Template File Handling
 - Template files must be copied to `dist/vscode/subagent_template/` during build

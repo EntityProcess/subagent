@@ -1,10 +1,10 @@
-import fs from "fs/promises";
-import JSON5 from "json5";
-import path from "path";
-import os from "os";
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import JSON5 from 'json5';
 
-const CONFIG_DIR = path.join(os.homedir(), ".subagent");
-const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
+const CONFIG_DIR = path.join(os.homedir(), '.subagent');
+const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
 /**
  * Simple config structure for subagent
@@ -12,23 +12,25 @@ const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
 export interface SubagentConfig {
   logLevel?: string;
   templatesDir?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
  * Interpolates environment variables in strings
  * Supports both ${VAR_NAME} and $VAR_NAME syntax
  */
-const interpolateEnvVars = (obj: any): any => {
-  if (typeof obj === "string") {
+const interpolateEnvVars = (obj: unknown): unknown => {
+  if (typeof obj === 'string') {
     return obj.replace(/\$\{([^}]+)\}|\$([A-Z_][A-Z0-9_]*)/g, (match, braced, unbraced) => {
       const varName = braced || unbraced;
       return process.env[varName] || match;
     });
-  } else if (Array.isArray(obj)) {
+  }
+  if (Array.isArray(obj)) {
     return obj.map(interpolateEnvVars);
-  } else if (obj !== null && typeof obj === "object") {
-    const result: any = {};
+  }
+  if (obj !== null && typeof obj === 'object') {
+    const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       result[key] = interpolateEnvVars(value);
     }
@@ -43,14 +45,15 @@ const interpolateEnvVars = (obj: any): any => {
  */
 export async function readConfig(): Promise<SubagentConfig> {
   try {
-    const content = await fs.readFile(CONFIG_FILE, "utf-8");
+    const content = await fs.readFile(CONFIG_FILE, 'utf-8');
     const parsed = JSON5.parse(content);
-    return interpolateEnvVars(parsed);
-  } catch (error: any) {
-    if (error.code === "ENOENT") {
+    return interpolateEnvVars(parsed) as SubagentConfig;
+  } catch (error: unknown) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
       return {};
     }
-    throw new Error(`Failed to read config: ${error.message}`);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to read config: ${message}`);
   }
 }
 
@@ -62,9 +65,10 @@ export async function writeConfig(config: SubagentConfig): Promise<void> {
   try {
     await fs.mkdir(CONFIG_DIR, { recursive: true });
     const content = JSON.stringify(config, null, 2);
-    await fs.writeFile(CONFIG_FILE, content, "utf-8");
-  } catch (error: any) {
-    throw new Error(`Failed to write config: ${error.message}`);
+    await fs.writeFile(CONFIG_FILE, content, 'utf-8');
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to write config: ${message}`);
   }
 }
 

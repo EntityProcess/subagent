@@ -1,10 +1,10 @@
-import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "fs/promises";
-import { spawn } from "child_process";
-import path from "path";
+import { spawn } from 'node:child_process';
+import { copyFile, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
-import { DEFAULT_LOCK_NAME, getDefaultSubagentRoot } from "./constants.js";
-import { pathExists, readDirEntries, removeIfExists } from "../utils/fs.js";
-import { transformWorkspacePaths } from "../utils/workspace.js";
+import { pathExists, readDirEntries, removeIfExists } from '../utils/fs.js';
+import { transformWorkspacePaths } from '../utils/workspace.js';
+import { DEFAULT_LOCK_NAME, getDefaultSubagentRoot } from './constants.js';
 
 /**
  * Default workspace template content
@@ -12,7 +12,7 @@ import { transformWorkspacePaths } from "../utils/workspace.js";
 const DEFAULT_WORKSPACE_TEMPLATE = {
   folders: [
     {
-      path: ".",
+      path: '.',
     },
   ],
 };
@@ -20,7 +20,7 @@ const DEFAULT_WORKSPACE_TEMPLATE = {
 /**
  * Get the subagent root directory
  */
-export function getSubagentRoot(vscodeCmd: string = "code"): string {
+export function getSubagentRoot(vscodeCmd = 'code'): string {
   return getDefaultSubagentRoot(vscodeCmd);
 }
 
@@ -34,17 +34,20 @@ export async function getAllSubagentWorkspaces(subagentRoot: string): Promise<st
 
   const entries = await readDirEntries(subagentRoot);
   const subagents = entries
-    .filter((entry) => entry.isDirectory && entry.name.startsWith("subagent-"))
+    .filter((entry) => entry.isDirectory && entry.name.startsWith('subagent-'))
     .map((entry) => ({
       absolutePath: entry.absolutePath,
-      number: Number.parseInt(entry.name.split("-")[1] ?? "", 10),
+      number: Number.parseInt(entry.name.split('-')[1] ?? '', 10),
     }))
     .filter((entry) => Number.isInteger(entry.number))
     .sort((a, b) => a.number - b.number);
 
   const workspaces: string[] = [];
   for (const subagent of subagents) {
-    const workspacePath = path.join(subagent.absolutePath, `${path.basename(subagent.absolutePath)}.code-workspace`);
+    const workspacePath = path.join(
+      subagent.absolutePath,
+      `${path.basename(subagent.absolutePath)}.code-workspace`,
+    );
     if (await pathExists(workspacePath)) {
       workspaces.push(workspacePath);
     }
@@ -62,10 +65,10 @@ export async function findUnlockedSubagent(subagentRoot: string): Promise<string
 
   const entries = await readDirEntries(subagentRoot);
   const subagents = entries
-    .filter((entry) => entry.isDirectory && entry.name.startsWith("subagent-"))
+    .filter((entry) => entry.isDirectory && entry.name.startsWith('subagent-'))
     .map((entry) => ({
       absolutePath: entry.absolutePath,
-      number: Number.parseInt(entry.name.split("-")[1] ?? "", 10),
+      number: Number.parseInt(entry.name.split('-')[1] ?? '', 10),
     }))
     .filter((entry) => Number.isInteger(entry.number))
     .sort((a, b) => a.number - b.number);
@@ -104,7 +107,7 @@ export async function copyAgentConfig(
     }
 
     // Read and parse custom template
-    const templateText = await readFile(workspaceSrc, "utf8");
+    const templateText = await readFile(workspaceSrc, 'utf8');
     workspaceContent = JSON.parse(templateText);
   } else {
     // Use default template
@@ -114,12 +117,14 @@ export async function copyAgentConfig(
   // Write workspace file
   const workspaceName = `${path.basename(subagentDir)}.code-workspace`;
   const workspaceDst = path.join(subagentDir, workspaceName);
-  const templateDir = workspaceTemplate ? path.dirname(path.resolve(workspaceTemplate)) : subagentDir;
+  const templateDir = workspaceTemplate
+    ? path.dirname(path.resolve(workspaceTemplate))
+    : subagentDir;
   const workspaceJson = JSON.stringify(workspaceContent, null, 2);
   const transformedContent = transformWorkspacePaths(workspaceJson, templateDir);
-  await writeFile(workspaceDst, transformedContent, "utf8");
+  await writeFile(workspaceDst, transformedContent, 'utf8');
 
-  const messagesDir = path.join(subagentDir, "messages");
+  const messagesDir = path.join(subagentDir, 'messages');
   await mkdir(messagesDir, { recursive: true });
 
   return { workspace: workspaceDst, messagesDir };
@@ -129,7 +134,7 @@ export async function copyAgentConfig(
  * Create a lock file and clean up messages directory
  */
 export async function createSubagentLock(subagentDir: string): Promise<string> {
-  const messagesDir = path.join(subagentDir, "messages");
+  const messagesDir = path.join(subagentDir, 'messages');
   if (await pathExists(messagesDir)) {
     const files = await readdir(messagesDir);
     await Promise.all(
@@ -140,19 +145,19 @@ export async function createSubagentLock(subagentDir: string): Promise<string> {
     );
   }
 
-  const githubAgentsDir = path.join(subagentDir, ".github", "agents");
+  const githubAgentsDir = path.join(subagentDir, '.github', 'agents');
   if (await pathExists(githubAgentsDir)) {
     const agentFiles = await readdir(githubAgentsDir);
-    const preservedFiles = new Set(["wakeup.md", "subagent.md"]);
+    const preservedFiles = new Set(['wakeup.md', 'subagent.md']);
     await Promise.all(
       agentFiles
-        .filter((file) => file.endsWith(".md") && !preservedFiles.has(file))
+        .filter((file) => file.endsWith('.md') && !preservedFiles.has(file))
         .map((file) => removeIfExists(path.join(githubAgentsDir, file))),
     );
   }
 
   const lockFile = path.join(subagentDir, DEFAULT_LOCK_NAME);
-  await writeFile(lockFile, "", { encoding: "utf8" });
+  await writeFile(lockFile, '', { encoding: 'utf8' });
   return lockFile;
 }
 
@@ -193,7 +198,7 @@ export async function prepareSubagentDirectory(
   }
 
   if (promptFile) {
-    const githubAgentsDir = path.join(subagentDir, ".github", "agents");
+    const githubAgentsDir = path.join(subagentDir, '.github', 'agents');
     await mkdir(githubAgentsDir, { recursive: true });
     const agentFile = path.join(githubAgentsDir, `${chatId}.md`);
     try {
@@ -217,7 +222,7 @@ export interface ListOptions {
  * List all subagents with their status
  */
 export async function listSubagents(options: ListOptions): Promise<number> {
-  const { subagentRoot, jsonOutput = false, vscodeCmd = "code" } = options;
+  const { subagentRoot, jsonOutput = false, vscodeCmd = 'code' } = options;
 
   const resolvedSubagentRoot = subagentRoot ?? getSubagentRoot(vscodeCmd);
 
@@ -226,17 +231,19 @@ export async function listSubagents(options: ListOptions): Promise<number> {
       process.stdout.write(`${JSON.stringify({ subagents: [] })}\n`);
     } else {
       console.error(`No subagents found in ${resolvedSubagentRoot}`);
-      console.error("hint: Provision subagents first with:\n  subagent code provision --subagents <count>");
+      console.error(
+        'hint: Provision subagents first with:\n  subagent code provision --subagents <count>',
+      );
     }
     return 1;
   }
 
   const entries = await readDirEntries(resolvedSubagentRoot);
   const subagents = entries
-    .filter((entry) => entry.isDirectory && entry.name.startsWith("subagent-"))
+    .filter((entry) => entry.isDirectory && entry.name.startsWith('subagent-'))
     .map((entry) => ({
       absolutePath: entry.absolutePath,
-      number: Number.parseInt(entry.name.split("-")[1] ?? "", 10),
+      number: Number.parseInt(entry.name.split('-')[1] ?? '', 10),
     }))
     .filter((entry) => Number.isInteger(entry.number))
     .sort((a, b) => a.number - b.number);
@@ -246,7 +253,9 @@ export async function listSubagents(options: ListOptions): Promise<number> {
       process.stdout.write(`${JSON.stringify({ subagents: [] })}\n`);
     } else {
       console.error(`No subagents found in ${resolvedSubagentRoot}`);
-      console.error("hint: Provision subagents first with:\n  subagent code provision --subagents <count>");
+      console.error(
+        'hint: Provision subagents first with:\n  subagent code provision --subagents <count>',
+      );
     }
     return 1;
   }
@@ -254,7 +263,10 @@ export async function listSubagents(options: ListOptions): Promise<number> {
   const infoList = await Promise.all(
     subagents.map(async (subagent) => {
       const lockFile = path.join(subagent.absolutePath, DEFAULT_LOCK_NAME);
-      const workspaceFile = path.join(subagent.absolutePath, `${path.basename(subagent.absolutePath)}.code-workspace`);
+      const workspaceFile = path.join(
+        subagent.absolutePath,
+        `${path.basename(subagent.absolutePath)}.code-workspace`,
+      );
       const isLocked = await pathExists(lockFile);
       const workspaceExists = await pathExists(workspaceFile);
 
@@ -263,7 +275,7 @@ export async function listSubagents(options: ListOptions): Promise<number> {
         path: subagent.absolutePath,
         workspace: workspaceExists ? workspaceFile : null,
         locked: isLocked,
-        status: isLocked ? "locked" : "available",
+        status: isLocked ? 'locked' : 'available',
       };
     }),
   );
@@ -279,10 +291,10 @@ export async function listSubagents(options: ListOptions): Promise<number> {
   console.error(`Found ${infoList.length} subagent(s) in ${resolvedSubagentRoot}`);
   console.error(`  Available: ${availableCount}`);
   console.error(`  Locked: ${lockedCount}`);
-  console.error("");
+  console.error('');
 
   for (const info of infoList) {
-    const icon = info.locked ? "🔒" : "✓";
+    const icon = info.locked ? '🔒' : '✓';
     console.log(`${icon} ${info.name.padEnd(15)} ${info.status.padEnd(10)} ${info.path}`);
   }
 
@@ -300,7 +312,7 @@ export interface WarmupOptions {
  * Warm up subagents by opening their workspaces
  */
 export async function warmupSubagents(options: WarmupOptions): Promise<number> {
-  const { subagentRoot, subagents = 1, dryRun = false, vscodeCmd = "code" } = options;
+  const { subagentRoot, subagents = 1, dryRun = false, vscodeCmd = 'code' } = options;
 
   const resolvedSubagentRoot = subagentRoot ?? getSubagentRoot(vscodeCmd);
 
@@ -308,30 +320,34 @@ export async function warmupSubagents(options: WarmupOptions): Promise<number> {
 
   if (workspaces.length === 0) {
     console.error(`info: No provisioned subagents found in ${resolvedSubagentRoot}`);
-    console.error("hint: Provision subagents first with:\n  subagent code provision --subagents <count>");
+    console.error(
+      'hint: Provision subagents first with:\n  subagent code provision --subagents <count>',
+    );
     return 1;
   }
 
   const workspacesToOpen = workspaces.slice(0, Math.max(1, subagents));
 
-  console.error(`Found ${workspaces.length} subagent workspace(s), opening ${workspacesToOpen.length}`);
+  console.error(
+    `Found ${workspaces.length} subagent workspace(s), opening ${workspacesToOpen.length}`,
+  );
 
   if (dryRun) {
-    console.error("Workspaces that would be opened:");
+    console.error('Workspaces that would be opened:');
     for (const workspace of workspacesToOpen) {
       console.error(`  ${workspace}`);
     }
     return 0;
   }
 
-  console.error("Opening workspaces...");
+  console.error('Opening workspaces...');
   for (let index = 0; index < workspacesToOpen.length; index += 1) {
-    const workspace = workspacesToOpen[index];
+    const workspace = workspacesToOpen[index]!;
     const subagentName = path.basename(path.dirname(workspace));
     console.error(`  [${index + 1}/${workspacesToOpen.length}] ${subagentName}`);
     spawn(vscodeCmd, [workspace], { windowsHide: true, shell: true, detached: false });
   }
 
-  console.error("✓ All workspaces opened");
+  console.error('✓ All workspaces opened');
   return 0;
 }
