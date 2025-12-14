@@ -1,12 +1,12 @@
-import { exec, spawn } from "child_process";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
-import { promisify } from "util";
+import { exec, spawn } from 'node:child_process';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { promisify } from 'node:util';
 
-import { DEFAULT_ALIVE_FILENAME } from "./constants.js";
-import { pathExists, removeIfExists } from "../utils/fs.js";
-import { pathToFileUri } from "../utils/path.js";
-import { sleep } from "../utils/time.js";
+import { pathExists, removeIfExists } from '../utils/fs.js';
+import { pathToFileUri } from '../utils/path.js';
+import { sleep } from '../utils/time.js';
+import { DEFAULT_ALIVE_FILENAME } from './constants.js';
 
 const execAsync = promisify(exec);
 
@@ -21,9 +21,15 @@ model: Grok Code Fast 1 (copilot)
 /**
  * Check if a workspace is currently opened in VS Code
  */
-export async function checkWorkspaceOpened(workspaceName: string, vscodeCmd: string): Promise<boolean> {
+export async function checkWorkspaceOpened(
+  workspaceName: string,
+  vscodeCmd: string,
+): Promise<boolean> {
   try {
-    const { stdout } = await execAsync(`${vscodeCmd} --status`, { timeout: 10_000, windowsHide: true });
+    const { stdout } = await execAsync(`${vscodeCmd} --status`, {
+      timeout: 10_000,
+      windowsHide: true,
+    });
     return stdout.includes(workspaceName);
   } catch {
     return false;
@@ -51,19 +57,19 @@ export async function ensureWorkspaceFocused(
   const aliveFile = path.join(subagentDir, DEFAULT_ALIVE_FILENAME);
   await removeIfExists(aliveFile);
 
-  const githubAgentsDir = path.join(subagentDir, ".github", "agents");
+  const githubAgentsDir = path.join(subagentDir, '.github', 'agents');
   await mkdir(githubAgentsDir, { recursive: true });
-  const wakeupDst = path.join(githubAgentsDir, "wakeup.md");
-  await writeFile(wakeupDst, DEFAULT_WAKEUP_CONTENT, "utf8");
+  const wakeupDst = path.join(githubAgentsDir, 'wakeup.md');
+  await writeFile(wakeupDst, DEFAULT_WAKEUP_CONTENT, 'utf8');
 
   spawn(vscodeCmd, [workspacePath], { windowsHide: true, shell: true, detached: false });
   await sleep(100);
 
-  const wakeupChatId = "wakeup";
+  const wakeupChatId = 'wakeup';
   const chatArgs = [
-    "-r",
-    "chat",
-    "-m",
+    '-r',
+    'chat',
+    '-m',
     wakeupChatId,
     `create a file named .alive in the ${path.basename(subagentDir)} folder`,
   ];
@@ -94,18 +100,18 @@ export async function launchVsCodeWithChat(
 ): Promise<boolean> {
   try {
     const workspacePath = path.join(subagentDir, `${path.basename(subagentDir)}.code-workspace`);
-    const messagesDir = path.join(subagentDir, "messages");
+    const messagesDir = path.join(subagentDir, 'messages');
     await mkdir(messagesDir, { recursive: true });
 
     const reqFile = path.join(messagesDir, `${timestamp}_req.md`);
-    await writeFile(reqFile, requestInstructions, { encoding: "utf8" });
+    await writeFile(reqFile, requestInstructions, { encoding: 'utf8' });
 
     const reqUri = pathToFileUri(reqFile);
-    const chatArgs = ["-r", "chat", "-m", chatId];
+    const chatArgs = ['-r', 'chat', '-m', chatId];
     for (const attachment of attachmentPaths) {
-      chatArgs.push("-a", attachment);
+      chatArgs.push('-a', attachment);
     }
-    chatArgs.push("-a", reqFile);
+    chatArgs.push('-a', reqFile);
     chatArgs.push(`Follow instructions in [${path.basename(reqFile)}](${reqUri})`);
 
     const workspaceReady = await ensureWorkspaceFocused(
@@ -115,7 +121,7 @@ export async function launchVsCodeWithChat(
       vscodeCmd,
     );
     if (!workspaceReady) {
-      console.error("warning: Workspace may not be fully ready");
+      console.error('warning: Workspace may not be fully ready');
     }
 
     await sleep(500);
@@ -139,12 +145,12 @@ export async function launchVsCodeWithBatchChat(
 ): Promise<boolean> {
   try {
     const workspacePath = path.join(subagentDir, `${path.basename(subagentDir)}.code-workspace`);
-    const messagesDir = path.join(subagentDir, "messages");
+    const messagesDir = path.join(subagentDir, 'messages');
     await mkdir(messagesDir, { recursive: true });
 
-    const chatArgs = ["-r", "chat", "-m", chatId];
+    const chatArgs = ['-r', 'chat', '-m', chatId];
     for (const attachment of attachmentPaths) {
-      chatArgs.push("-a", attachment);
+      chatArgs.push('-a', attachment);
     }
     chatArgs.push(chatInstruction);
 
@@ -155,7 +161,7 @@ export async function launchVsCodeWithBatchChat(
       vscodeCmd,
     );
     if (!workspaceReady) {
-      console.error("warning: Workspace may not be fully ready");
+      console.error('warning: Workspace may not be fully ready');
     }
 
     await sleep(500);

@@ -1,12 +1,12 @@
-import os from "os";
-import path from "path";
+import os from 'node:os';
+import path from 'node:path';
 
-export const DEFAULT_LOCK_NAME = "subagent.lock";
-export const DEFAULT_ALIVE_FILENAME = ".alive";
+export const DEFAULT_LOCK_NAME = 'subagent.lock';
+export const DEFAULT_ALIVE_FILENAME = '.alive';
 
-export function getDefaultSubagentRoot(vscodeCmd: string = "code"): string {
-  const folder = vscodeCmd === "code-insiders" ? "vscode-insiders-agents" : "vscode-agents";
-  return path.join(os.homedir(), ".subagent", folder);
+export function getDefaultSubagentRoot(vscodeCmd = 'code'): string {
+  const folder = vscodeCmd === 'code-insiders' ? 'vscode-insiders-agents' : 'vscode-agents';
+  return path.join(os.homedir(), '.subagent', folder);
 }
 
 export const DEFAULT_SUBAGENT_ROOT = getDefaultSubagentRoot();

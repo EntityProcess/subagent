@@ -1,8 +1,8 @@
-import { readFile } from "fs/promises";
-import path from "path";
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 
-import { pathExists } from "../utils/fs.js";
-import { sleep } from "../utils/time.js";
+import { pathExists } from '../utils/fs.js';
+import { sleep } from '../utils/time.js';
 
 /**
  * Wait for a response file to be created and read its content
@@ -21,7 +21,7 @@ export async function waitForResponseOutput(
       await sleep(pollInterval);
     }
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return false;
     }
     throw error;
@@ -31,14 +31,14 @@ export async function waitForResponseOutput(
   const maxAttempts = 10;
   while (attempts < maxAttempts) {
     try {
-      const content = await readFile(responseFileFinal, { encoding: "utf8" });
+      const content = await readFile(responseFileFinal, { encoding: 'utf8' });
       if (!silent) {
         process.stdout.write(`${content}\n`);
       }
       return true;
     } catch (error) {
       attempts += 1;
-      if ((error as NodeJS.ErrnoException).code !== "EBUSY" || attempts >= maxAttempts) {
+      if ((error as NodeJS.ErrnoException).code !== 'EBUSY' || attempts >= maxAttempts) {
         if (!silent) {
           console.error(`error: failed to read agent response: ${(error as Error).message}`);
         }
@@ -60,7 +60,7 @@ export async function waitForBatchResponses(
   silent = false,
 ): Promise<boolean> {
   if (!silent) {
-    const fileList = responseFilesFinal.map((file) => path.basename(file)).join(", ");
+    const fileList = responseFilesFinal.map((file) => path.basename(file)).join(', ');
     console.error(`waiting for ${responseFilesFinal.length} batch response(s): ${fileList}`);
   }
 
@@ -78,7 +78,7 @@ export async function waitForBatchResponses(
       }
     }
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return false;
     }
     throw error;
@@ -89,14 +89,14 @@ export async function waitForBatchResponses(
     const maxAttempts = 10;
     while (attempts < maxAttempts) {
       try {
-        const content = await readFile(file, { encoding: "utf8" });
+        const content = await readFile(file, { encoding: 'utf8' });
         if (!silent) {
           process.stdout.write(`${content}\n`);
         }
         break;
       } catch (error) {
         attempts += 1;
-        if ((error as NodeJS.ErrnoException).code !== "EBUSY" || attempts >= maxAttempts) {
+        if ((error as NodeJS.ErrnoException).code !== 'EBUSY' || attempts >= maxAttempts) {
           if (!silent) {
             console.error(`error: failed to read agent response: ${(error as Error).message}`);
           }

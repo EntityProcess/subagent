@@ -1,6 +1,6 @@
-import { constants } from "fs";
-import { access, mkdir, readdir, rm, stat } from "fs/promises";
-import path from "path";
+import { constants } from 'node:fs';
+import { access, mkdir, readdir, rm, stat } from 'node:fs/promises';
+import path from 'node:path';
 
 export async function pathExists(target: string): Promise<boolean> {
   try {
@@ -43,7 +43,7 @@ export async function removeIfExists(target: string): Promise<void> {
   try {
     await rm(target, { force: true, recursive: false });
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       throw error;
     }
   }
