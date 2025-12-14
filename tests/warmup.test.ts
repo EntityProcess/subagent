@@ -1,7 +1,8 @@
+import { afterEach, beforeEach, describe, expect, test as it, mock } from 'bun:test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+const vi = { fn: mock };
 import { pathExists } from '../src/utils/fs.js';
 import { getAllSubagentWorkspaces, warmupSubagents } from '../src/vscode/agentDispatch.js';
 import { DEFAULT_LOCK_NAME } from '../src/vscode/constants.js';

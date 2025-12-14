@@ -1,7 +1,7 @@
+import { afterEach, beforeEach, describe, expect, test as it } from 'bun:test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { pathExists } from '../src/utils/fs.js';
 import { DEFAULT_LOCK_NAME } from '../src/vscode/constants.js';
 import { provisionSubagents, unlockSubagents } from '../src/vscode/provision.js';

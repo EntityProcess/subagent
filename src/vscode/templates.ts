@@ -3,7 +3,11 @@
  * These are embedded at build time to avoid file I/O and bundling issues
  */
 
-export const DEFAULT_REQUEST_TEMPLATE = `[[ ## system_instructions ## ]]
+export const DEFAULT_REQUEST_TEMPLATE = `[[ ## task ## ]]
+
+{{userQuery}}
+
+[[ ## system_instructions ## ]]
 
 **IMPORTANT**: Follow these exact steps:
 1. Create and write your complete response to: {{responseFileTmp}}
@@ -14,22 +18,18 @@ if (Test-Path subagent.lock) { del subagent.lock }
 \`\`\`
 
 Do not proceed to step 2 until your response is completely written to the temporary file.
-
-[[ ## task ## ]]
-
-{{userQuery}}
 `;
 
-export const DEFAULT_BATCH_REQUEST_TEMPLATE = `[[ ## system_instructions ## ]]
+export const DEFAULT_BATCH_REQUEST_TEMPLATE = `[[ ## task ## ]]
+
+{{userQuery}}
+
+[[ ## system_instructions ## ]]
 
 **IMPORTANT**: Follow these exact steps:
 1. Create and write your complete response to: {{responseFileTmp}}
 2. When completely finished and the response is stable, rename it to: {{responseFileFinal}}
-5. Do not unlock the workspace from this request; batch orchestration will handle unlocking after all responses are ready.
-
-[[ ## task ## ]]
-
-{{userQuery}}
+3. Do not unlock the workspace from this request; batch orchestration will handle unlocking after all responses are ready.
 `;
 
 export const DEFAULT_BATCH_ORCHESTRATOR_TEMPLATE = `MANDATORY: Run #runSubagent tool in your Available Actions for each request file to process them in isolated contexts.

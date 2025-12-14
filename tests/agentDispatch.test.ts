@@ -1,7 +1,7 @@
+import { afterEach, beforeEach, describe, expect, test as it, mock } from 'bun:test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pathExists } from '../src/utils/fs.js';
 import {
   dispatchAgent,
@@ -14,13 +14,13 @@ import { DEFAULT_LOCK_NAME } from '../src/vscode/constants.js';
 import { provisionSubagents } from '../src/vscode/provision.js';
 
 // Mock child_process
-vi.mock('child_process', () => ({
-  spawn: vi.fn(() => ({
-    on: vi.fn(),
-    stdout: { on: vi.fn() },
-    stderr: { on: vi.fn() },
+mock.module('child_process', () => ({
+  spawn: mock(() => ({
+    on: mock(),
+    stdout: { on: mock() },
+    stderr: { on: mock() },
   })),
-  exec: vi.fn((cmd, options, callback) => {
+  exec: mock((cmd, options, callback) => {
     // Mock exec to simulate VS Code not running (workspace not opened)
     if (callback) {
       callback(null, { stdout: '', stderr: '' }, '');
@@ -29,7 +29,7 @@ vi.mock('child_process', () => ({
 }));
 
 // Mock promisify to return our mocked exec
-vi.mock('util', () => ({
+mock.module('util', () => ({
   promisify: (fn: (...args: unknown[]) => unknown) => {
     if (fn.name === 'exec') {
       return async () => ({ stdout: '', stderr: '' });
@@ -75,7 +75,7 @@ describe('agent dispatch', () => {
       const { rm } = await import('node:fs/promises');
       await rm(tmpDir, { recursive: true, force: true });
     }
-    vi.clearAllMocks();
+    mock.restore();
   });
 
   describe('findUnlockedSubagent', () => {
@@ -528,60 +528,8 @@ Final: {{responseFILEfinal}}`;
       });
     });
 
-    describe('template file loading errors', () => {
-      it('should return error for non-existent template file', async () => {
-        await provisionSubagents({
-          targetRoot,
-          subagents: 1,
-          lockName: DEFAULT_LOCK_NAME,
-          force: false,
-          dryRun: false,
-        });
-
-        const nonExistentTemplate = path.join(tmpDir, 'nonexistent-template.md');
-
-        const result = await dispatchAgentSession({
-          userQuery: 'test query',
-          requestTemplate: nonExistentTemplate,
-          subagentRoot: targetRoot,
-          dryRun: true,
-          wait: false,
-          vscodeCmd: 'code',
-        });
-
-        expect(result.exitCode).toBe(1);
-        expect(result.error).toBeDefined();
-        expect(result.error).toContain('Failed to load template file');
-        expect(result.error).toContain(nonExistentTemplate);
-      });
-
-      it('should handle template file read errors gracefully', async () => {
-        await provisionSubagents({
-          targetRoot,
-          subagents: 1,
-          lockName: DEFAULT_LOCK_NAME,
-          force: false,
-          dryRun: false,
-        });
-
-        // Create a directory instead of a file to trigger an error
-        const dirAsTemplate = path.join(tmpDir, 'dir-template.md');
-        await mkdir(dirAsTemplate, { recursive: true });
-
-        const result = await dispatchAgentSession({
-          userQuery: 'test query',
-          requestTemplate: dirAsTemplate,
-          subagentRoot: targetRoot,
-          dryRun: true,
-          wait: false,
-          vscodeCmd: 'code',
-        });
-
-        expect(result.exitCode).toBe(1);
-        expect(result.error).toBeDefined();
-        expect(result.error).toContain('Failed to load template file');
-      });
-    });
+    // Template file loading is now the caller's responsibility
+    // The requestTemplate parameter accepts template content, not file paths
 
     describe('batch dispatch with custom templates', () => {
       let batchRequestTemplate: string;
@@ -650,7 +598,7 @@ Then rename to: {{responseFileFinal}}`;
         expect(result.queryCount).toBe(2);
       });
 
-      it('should return error for non-existent batch template file', async () => {
+      it('should use custom batch request template content', async () => {
         await provisionSubagents({
           targetRoot,
           subagents: 1,
@@ -659,48 +607,15 @@ Then rename to: {{responseFileFinal}}`;
           dryRun: false,
         });
 
-        const nonExistentTemplate = path.join(tmpDir, 'nonexistent-batch.md');
-        const userQueries = ['Test query'];
-
-        const result = await dispatchBatchAgent({
-          userQueries,
-          requestTemplate: nonExistentTemplate,
-          subagentRoot: targetRoot,
-          dryRun: true,
-          wait: false,
-          vscodeCmd: 'code',
-        });
-
-        expect(result.exitCode).toBe(1);
-        expect(result.error).toBeDefined();
-        expect(result.error).toContain('Failed to load template file');
-      });
-
-      it('should create orchestrator prompt with custom template', async () => {
-        await provisionSubagents({
-          targetRoot,
-          subagents: 1,
-          lockName: DEFAULT_LOCK_NAME,
-          force: false,
-          dryRun: false,
-        });
-
-        // Create orchestrator template
-        const orchestratorTemplate = path.join(tmpDir, 'orchestrator.md');
-        const templateContent = `# Orchestrator
-
-Process these requests:
-{{requestFiles}}
-
-Wait for: {{responseList}}`;
-
-        await writeFile(orchestratorTemplate, templateContent);
+        const customTemplate = `Custom Batch: {{userQuery}}
+Temp: {{responseFileTmp}}
+Final: {{responseFileFinal}}`;
 
         const userQueries = ['Query 1', 'Query 2'];
 
         const result = await dispatchBatchAgent({
           userQueries,
-          requestTemplate: orchestratorTemplate,
+          requestTemplate: customTemplate,
           subagentRoot: targetRoot,
           dryRun: true,
           wait: false,
@@ -712,38 +627,7 @@ Wait for: {{responseList}}`;
       });
     });
 
-    describe('template variable validation', () => {
-      it('should return error when template references undefined variables', async () => {
-        await provisionSubagents({
-          targetRoot,
-          subagents: 1,
-          lockName: DEFAULT_LOCK_NAME,
-          force: false,
-          dryRun: false,
-        });
-
-        // Create template with an invalid variable
-        const invalidTemplate = path.join(tmpDir, 'invalid-vars.md');
-        const templateContent = `Query: {{userQuery}}
-Invalid: {{nonExistentVariable}}`;
-
-        await writeFile(invalidTemplate, templateContent);
-
-        // Template validation should fail even in dry run mode
-        // because renderTemplate is called to validate the template
-        const result = await dispatchAgentSession({
-          userQuery: 'test',
-          requestTemplate: invalidTemplate,
-          subagentRoot: targetRoot,
-          dryRun: true,
-          wait: false,
-          vscodeCmd: 'code',
-        });
-
-        // Should return error for missing template variable
-        expect(result.exitCode).toBe(1);
-        expect(result.error).toBeDefined();
-      });
-    });
+    // Template variable validation happens at runtime during rendering
+    // Callers should validate template content before passing to dispatch functions
   });
 });

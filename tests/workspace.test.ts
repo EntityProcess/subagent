@@ -1,5 +1,5 @@
+import { describe, expect, test as it } from 'bun:test';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
 import { transformWorkspacePaths } from '../src/utils/workspace.js';
 
 describe('transformWorkspacePaths', () => {

@@ -72,6 +72,7 @@ async function resolveAttachments(
 export interface DispatchOptions {
   userQuery: string;
   promptFile?: string;
+  /** Template content (not file path) for the request prompt. If not provided, uses default template. */
   requestTemplate?: string;
   extraAttachments?: readonly string[];
   workspaceTemplate?: string;
@@ -111,9 +112,7 @@ export async function dispatchAgent(options: DispatchOptions): Promise<number> {
 
   try {
     const resolvedPrompt = await resolvePromptFile(promptFile);
-    const templateContent = requestTemplate
-      ? await loadTemplateFile(path.resolve(requestTemplate))
-      : loadDefaultRequestTemplate();
+    const templateContent = requestTemplate ?? loadDefaultRequestTemplate();
 
     const subagentRootPath = subagentRoot ?? getSubagentRoot(vscodeCmd);
     const subagentDir = await findUnlockedSubagent(subagentRootPath);
@@ -245,17 +244,7 @@ export async function dispatchAgentSession(
       };
     }
 
-    let templateContent: string;
-    try {
-      templateContent = requestTemplate
-        ? await loadTemplateFile(path.resolve(requestTemplate))
-        : loadDefaultRequestTemplate();
-    } catch (error) {
-      return {
-        exitCode: 1,
-        error: (error as Error).message,
-      };
-    }
+    const templateContent = requestTemplate ?? loadDefaultRequestTemplate();
 
     const subagentRootPath = subagentRoot ?? getSubagentRoot(vscodeCmd);
     const subagentDir = await findUnlockedSubagent(subagentRootPath);
@@ -414,19 +403,7 @@ export async function dispatchBatchAgent(
       };
     }
 
-    let batchRequestTemplateContent: string;
-    try {
-      batchRequestTemplateContent = requestTemplate
-        ? await loadTemplateFile(path.resolve(requestTemplate))
-        : loadDefaultBatchRequestTemplate();
-    } catch (error) {
-      return {
-        exitCode: 1,
-        requestFiles,
-        queryCount,
-        error: (error as Error).message,
-      };
-    }
+    const batchRequestTemplateContent = requestTemplate ?? loadDefaultBatchRequestTemplate();
 
     const orchestratorTemplateContent = loadDefaultBatchOrchestratorTemplate();
 
