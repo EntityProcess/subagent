@@ -1,5 +1,11 @@
 # subagent
 
+## 0.5.6
+
+### Patch Changes
+
+- change order of system_instructions in default request template
+
 ## 0.5.5
 
 ### Patch Changes
