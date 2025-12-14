@@ -1,43 +1,17 @@
-import { afterEach, beforeEach, describe, expect, test as it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test as it } from 'bun:test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { pathExists } from '../src/utils/fs.js';
+import { pathExists } from '../../src/utils/fs.js';
 import {
   dispatchAgent,
   dispatchAgentSession,
   dispatchBatchAgent,
   findUnlockedSubagent,
   listSubagents,
-} from '../src/vscode/agentDispatch.js';
-import { DEFAULT_LOCK_NAME } from '../src/vscode/constants.js';
-import { provisionSubagents } from '../src/vscode/provision.js';
-
-// Mock child_process
-mock.module('child_process', () => ({
-  spawn: mock(() => ({
-    on: mock(),
-    stdout: { on: mock() },
-    stderr: { on: mock() },
-  })),
-  exec: mock((cmd, options, callback) => {
-    // Mock exec to simulate VS Code not running (workspace not opened)
-    if (callback) {
-      callback(null, { stdout: '', stderr: '' }, '');
-    }
-  }),
-}));
-
-// Mock promisify to return our mocked exec
-mock.module('util', () => ({
-  promisify: (fn: (...args: unknown[]) => unknown) => {
-    if (fn.name === 'exec') {
-      return async () => ({ stdout: '', stderr: '' });
-    }
-    // For other functions, just wrap them in a promise
-    return (...args: unknown[]) => Promise.resolve(fn(...args));
-  },
-}));
+} from '../../src/vscode/agentDispatch.js';
+import { DEFAULT_LOCK_NAME } from '../../src/vscode/constants.js';
+import { provisionSubagents } from '../../src/vscode/provision.js';
 
 describe('agent dispatch', () => {
   let tmpDir: string;
@@ -75,7 +49,6 @@ describe('agent dispatch', () => {
       const { rm } = await import('node:fs/promises');
       await rm(tmpDir, { recursive: true, force: true });
     }
-    mock.restore();
   });
 
   describe('findUnlockedSubagent', () => {

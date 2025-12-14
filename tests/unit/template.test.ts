@@ -1,5 +1,5 @@
 import { describe, expect, test as it } from 'bun:test';
-import { renderTemplate } from '../src/utils/template.js';
+import { renderTemplate } from '../../src/utils/template.js';
 
 describe('renderTemplate', () => {
   describe('basic variable replacement', () => {

@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { dispatchBatchAgent } from '../src/vscode/agentDispatch.js';
-import { provisionSubagents } from '../src/vscode/provision.js';
+import { dispatchBatchAgent } from '../../src/vscode/agentDispatch.js';
+import { provisionSubagents } from '../../src/vscode/provision.js';
 
 describe('vscode integration', () => {
   let testRoot: string;
@@ -28,7 +28,7 @@ describe('vscode integration', () => {
   });
 
   test('should dispatch single agent with default template and verify variable substitution', async () => {
-    const { dispatchAgentSession } = await import('../src/vscode/agentDispatch.js');
+    const { dispatchAgentSession } = await import('../../src/vscode/agentDispatch.js');
 
     const result = await dispatchAgentSession({
       userQuery: 'TEST_MARKER: Verify single dispatch works end-to-end',

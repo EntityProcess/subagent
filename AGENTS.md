@@ -49,10 +49,13 @@ When making changes that should be included in the next release:
 - When adding new CLI commands, register them in `cli.ts` with appropriate options and handlers
 
 ## Testing Guidelines
-- Use Vitest for testing framework
+- Use Bun's built-in test runner for testing
 - Name test files `*.test.ts` or `*.spec.ts`
-- Structure tests alongside the modules they cover in a `tests/` or `__tests__/` directory
-- Mock file system operations and subprocess calls in tests
+- Unit tests: Place in `tests/unit/` directory
+- Integration tests: Place in `tests/integration/` directory
+- Default `bun test` runs only unit tests (excludes integration tests)
+- Run integration tests with `bun run test:integration`
+- Run all tests with `bun run test:all`
 - Ensure tests pass via `bun test` before opening a PR
 
 ## Commit & Pull Request Guidelines

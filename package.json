@@ -34,9 +34,9 @@
     "fix": "biome check --write .",
     "changeset": "changeset",
     "version": "changeset version",
-    "test": "bun test --exclude '**/*.integration.test.ts'",
-    "test:integration": "bun test tests/*.integration.test.ts",
-    "test:all": "bun test",
+    "test": "bun test ./tests/unit",
+    "test:integration": "bun test ./tests/integration",
+    "test:all": "bun test ./tests",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
     "prepublishOnly": "bun run build && bun run test"
