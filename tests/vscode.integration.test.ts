@@ -1,11 +1,11 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { dispatchBatchAgent } from '../src/vscode/agentDispatch.js';
 import { provisionSubagents } from '../src/vscode/provision.js';
 
-describe('vscode integration', { concurrent: false, timeout: 30000 }, () => {
+describe('vscode integration', () => {
   let testRoot: string;
 
   beforeAll(async () => {
@@ -23,27 +23,11 @@ describe('vscode integration', { concurrent: false, timeout: 30000 }, () => {
   });
 
   afterAll(async () => {
-    // Cleanup test directory (with retries in case files are locked by VS Code)
-    let retries = 3;
-    while (retries > 0) {
-      try {
-        await rm(testRoot, { recursive: true, force: true });
-        break;
-      } catch (error) {
-        retries--;
-        if (retries === 0) {
-          console.warn(
-            `Warning: Failed to cleanup test directory ${testRoot}: ${(error as Error).message}`,
-          );
-        } else {
-          // Wait a bit and retry
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-      }
-    }
+    // Note: Automatic cleanup often fails due to VS Code file locks
+    console.info(`INFO: Please manually delete test directory: ${testRoot}`);
   });
 
-  it.skip('should dispatch single agent with default template and verify variable substitution', async () => {
+  test('should dispatch single agent with default template and verify variable substitution', async () => {
     const { dispatchAgentSession } = await import('../src/vscode/agentDispatch.js');
 
     const result = await dispatchAgentSession({
@@ -87,7 +71,7 @@ describe('vscode integration', { concurrent: false, timeout: 30000 }, () => {
     expect(content).toMatch(/_res\.md/);
   });
 
-  it.skip('should dispatch batch agents with default template and verify orchestration', async () => {
+  test('should dispatch batch agents with default template and verify orchestration', async () => {
     const result = await dispatchBatchAgent({
       userQueries: ['BATCH_TEST_1: First query', 'BATCH_TEST_2: Second query'],
       dryRun: false,
